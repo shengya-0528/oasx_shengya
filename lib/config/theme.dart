@@ -13,6 +13,20 @@ const List<String> _webChineseFontFallback = <String>[
   'sans-serif',
 ];
 
+/// 桌面端中文回退链。Windows 在前，其它平台的名字排在后面当兜底。
+const List<String> _desktopChineseFontFallback = <String>[
+  'Microsoft YaHei',
+  'Microsoft JhengHei',
+  'SimHei',
+  'SimSun',
+  'Noto Sans SC',
+  'Noto Sans CJK SC',
+  'Source Han Sans SC',
+  'PingFang SC',
+  'Hiragino Sans GB',
+  'WenQuanYi Micro Hei',
+];
+
 /// 用枚举太麻烦了
 enum ColorSeed {
   baseColor('M3 Baseline', Color(0xff6750a4)),
@@ -77,13 +91,20 @@ TextTheme _buildTextTheme(Brightness brightness) {
   if (kIsWeb) {
     return _applyFontFallback(baseTheme, _webChineseFontFallback);
   }
-  return baseTheme.apply(fontFamily: 'LatoLato').useSystemChineseFont(
-        brightness,
-      );
+  return _applyFontFallback(
+    baseTheme.apply(fontFamily: 'LatoLato').useSystemChineseFont(brightness),
+    _desktopChineseFontFallback,
+  );
 }
 
 TextTheme _applyFontFallback(TextTheme textTheme, List<String> fallback) {
   return textTheme.copyWith(
+    displayLarge: _applyTextStyleFallback(textTheme.displayLarge, fallback),
+    displayMedium: _applyTextStyleFallback(textTheme.displayMedium, fallback),
+    displaySmall: _applyTextStyleFallback(textTheme.displaySmall, fallback),
+    headlineLarge: _applyTextStyleFallback(textTheme.headlineLarge, fallback),
+    headlineMedium: _applyTextStyleFallback(textTheme.headlineMedium, fallback),
+    headlineSmall: _applyTextStyleFallback(textTheme.headlineSmall, fallback),
     bodyLarge: _applyTextStyleFallback(textTheme.bodyLarge, fallback),
     bodyMedium: _applyTextStyleFallback(textTheme.bodyMedium, fallback),
     bodySmall: _applyTextStyleFallback(textTheme.bodySmall, fallback),
@@ -97,5 +118,18 @@ TextTheme _applyFontFallback(TextTheme textTheme, List<String> fallback) {
 }
 
 TextStyle? _applyTextStyleFallback(TextStyle? style, List<String> fallback) {
-  return style?.copyWith(fontFamilyFallback: fallback);
+  if (style == null) {
+    return null;
+  }
+  // 放在最前面，而不是替换：chinese_font_library 给的链路开头是
+  // "system-font"（桌面上从未 load 成功）和 "sans-serif"（桌面解析成纯
+  // 拉丁字体），中文落到它们眼里就变成 .notdef 方框问号——2026-10-31
+  // 金币妖怪配置页「御魂装配分组设置」下面的说明文字就是这样坏的。
+  final existing = style.fontFamilyFallback ?? const <String>[];
+  return style.copyWith(
+    fontFamilyFallback: <String>[
+      ...fallback,
+      ...existing.where((family) => !fallback.contains(family)),
+    ],
+  );
 }
