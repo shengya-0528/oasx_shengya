@@ -79,3 +79,19 @@ print(d.count(b'income_compare'))                  # 功能字符串在
 ```
 
 启动后看日志里有没有 `MissingPluginException`；窗口能不能出来、标题栏有没有内容。
+
+## 推送到 GitHub
+
+这台机器直连 `github.com` 会被重置，全局配置里有一条 `url.*.insteadOf` 把 `github.com` 重写到 `https://gh-proxy.com/github.com/`——那是个**只读**镜像，`git push` 会报 `remote: No anonymous write access.`
+
+写入要显式改成 `ghproxy.net`：
+
+```bat
+git push https://<用户名>:<token>@ghproxy.net/https://github.com/shengya-0528/oasx_shengya.git main
+```
+
+- token 在 Windows 凭据管理器里，Target 是 `git:https://github.com`，账号 `shengya-0528`。git 凭据管理器（GCM）只对它认识的 host 生效，`ghproxy.net` 不在其中，所以**必须显式把 token 写进 URL**，否则推到的是空凭据，会报 `remote: Invalid username or token. Password authentication is not supported for Git operations.`
+- 密码不能用于 git 操作（GitHub 2021 年就关了），必须是 token。
+- 报 `No anonymous write access` = 走成了只读镜像（`gh-proxy.com`）；报 `Invalid username or token` = 凭据没带上或 token 失效。
+
+`origin` 保持标准地址即可，读取走全局 `insteadOf` 的镜像就够了。
