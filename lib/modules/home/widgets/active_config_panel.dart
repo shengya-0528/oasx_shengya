@@ -6,6 +6,7 @@ import 'package:oasx/modules/home/models/home_workbench_layout.dart';
 import 'package:oasx/modules/home/widgets/config_state_indicator.dart';
 import 'package:oasx/modules/home/widgets/log_center_panel.dart';
 import 'package:oasx/modules/home/widgets/statistics_panel.dart';
+import 'package:oasx/modules/home/widgets/income_panel.dart';
 import 'package:oasx/modules/home/widgets/analysis_panel.dart';
 import 'package:oasx/modules/home/widgets/task_catalog_panel.dart';
 import 'package:oasx/modules/home/widgets/task_status_panel.dart';
@@ -173,6 +174,7 @@ class ActiveConfigPanel extends StatelessWidget {
       HomeWorkbenchTab.stats => const ScriptStatisticsPanel(),
       HomeWorkbenchTab.logs => LogCenterPanel(scriptName: script.name),
       HomeWorkbenchTab.analysis => ScriptAnalysisPanel(scriptName: script.name),
+      HomeWorkbenchTab.assets => const ScriptIncomePanel(),
     };
   }
 
@@ -183,6 +185,7 @@ class ActiveConfigPanel extends StatelessWidget {
       HomeWorkbenchTab.stats => I18n.homeStatsTab.tr,
       HomeWorkbenchTab.logs => I18n.log.tr,
       HomeWorkbenchTab.analysis => I18n.homeAnalysisTab.tr,
+      HomeWorkbenchTab.assets => I18n.incomeTab.tr,
     };
   }
 }

@@ -4,6 +4,7 @@ import 'package:oasx/modules/home/controllers/dashboard_controller.dart';
 import 'package:oasx/modules/home/models/home_workbench_layout.dart';
 import 'package:oasx/modules/home/widgets/log_center_panel.dart';
 import 'package:oasx/modules/home/widgets/statistics_panel.dart';
+import 'package:oasx/modules/home/widgets/income_panel.dart';
 import 'package:oasx/modules/home/widgets/analysis_panel.dart';
 import 'package:oasx/translation/i18n_content.dart';
 
@@ -63,9 +64,11 @@ class WorkbenchSidebarPanel extends StatelessWidget {
             const SizedBox(height: 12),
             Expanded(
               child: Card(
-                child: currentTab == HomeWorkbenchTab.stats
-                    ? const ScriptStatisticsPanel()
-                    : ScriptAnalysisPanel(scriptName: scriptName),
+                child: switch (currentTab) {
+                  HomeWorkbenchTab.stats => const ScriptStatisticsPanel(),
+                  HomeWorkbenchTab.assets => const ScriptIncomePanel(),
+                  _ => ScriptAnalysisPanel(scriptName: scriptName),
+                },
               ),
             ),
           ],
@@ -110,6 +113,7 @@ class WorkbenchSidebarPanel extends StatelessWidget {
                   HomeWorkbenchTab.analysis => ScriptAnalysisPanel(
                     scriptName: scriptName,
                   ),
+                  HomeWorkbenchTab.assets => const ScriptIncomePanel(),
                   _ => const SizedBox.shrink(),
                 },
               ),
@@ -126,6 +130,7 @@ class WorkbenchSidebarPanel extends StatelessWidget {
       HomeWorkbenchTab.stats => I18n.homeStatsTab.tr,
       HomeWorkbenchTab.logs => I18n.log.tr,
       HomeWorkbenchTab.analysis => I18n.homeAnalysisTab.tr,
+      HomeWorkbenchTab.assets => I18n.incomeTab.tr,
       _ => '',
     };
   }
