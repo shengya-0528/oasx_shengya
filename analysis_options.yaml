@@ -10,6 +10,9 @@
 analyzer:
   exclude:
     - build/**
+    # 手工 AOT 构建用的插件注册表，由 tools/sync_plugin_registrant.py 生成；
+    # 内容是 pub 缓存里各插件的 registerWith，按当前插件版本可能有无效成员。
+    - lib/dart_plugin_registrant.dart
     - android/**
     - ios/**
     - web/**

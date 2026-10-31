@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:oasx/config/theme.dart' show darkTheme, lightTheme;
+import 'package:oasx/dart_plugin_registrant.dart' as plugin_registrant;
 import 'package:oasx/modules/settings/controllers/settings_controller.dart';
 import 'package:oasx/service/app_exit_service.dart';
 import 'package:oasx/service/autostart_service.dart';
@@ -27,6 +28,10 @@ import 'package:responsive_builder/responsive_builder.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 手工 AOT 构建（无 VS/cmake 时只能这么出包）下引擎找不到
+  // `dart_plugin_registrant` 库，插件注册不会自动执行：GetStorage 初始化时
+  // 会抛 MissingPluginException，界面停在白屏。这里显式注册一次。
+  plugin_registrant.registerPluginImplementations();
   await initService();
 
   runApp(
