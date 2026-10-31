@@ -20,8 +20,8 @@ const _kIncomeDateMenuMaxVisibleItems = 6;
 /// Main income (资产) tab content for the active script.
 ///
 /// One card per resource shows the amount read from the last snapshot of the
-/// selected day plus its change against the first read of that same day, so a
-/// long-running script can be watched without opening the game UI.
+/// selected day plus its change against the chosen baseline (1 / 3 / 7 days
+/// before), so a long-running script can be watched without opening the game UI.
 class ScriptIncomePanel extends StatelessWidget {
   /// Creates the income panel.
   const ScriptIncomePanel({super.key});
@@ -59,6 +59,8 @@ class ScriptIncomePanel extends StatelessWidget {
             onRefresh: controller.isLoading
                 ? null
                 : () => unawaited(controller.reload()),
+            compareDays: controller.compareDays.value,
+            onCompare: controller.selectCompareDays,
           ),
           const SizedBox(height: _kIncomeSectionSpacing),
           if (items.isEmpty)
@@ -76,8 +78,7 @@ class ScriptIncomePanel extends StatelessWidget {
                     mainAxisSpacing: _kIncomeCardGap,
                   ),
               itemCount: items.length,
-              itemBuilder: (context, index) =>
-                  _IncomeCard(item: items[index], showFirstRead: day.hasFirstRead),
+              itemBuilder: (context, index) => _IncomeCard(item: items[index]),
             ),
         ],
       );
@@ -137,6 +138,8 @@ class _IncomeHeader extends StatelessWidget {
     required this.selectedDateKey,
     required this.onSelected,
     required this.onRefresh,
+    required this.compareDays,
+    required this.onCompare,
   });
 
   final ScriptIncomeDay day;
@@ -144,10 +147,15 @@ class _IncomeHeader extends StatelessWidget {
   final String selectedDateKey;
   final ValueChanged<String> onSelected;
   final VoidCallback? onRefresh;
+  final int compareDays;
+  final ValueChanged<int> onCompare;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final baseline = day.baselineDate.trim().isEmpty
+        ? '--'
+        : formatIncomeDayLabel(day.baselineDate);
     return Container(
       padding: const EdgeInsets.only(bottom: _kIncomeSectionSpacing),
       decoration: BoxDecoration(
@@ -164,18 +172,21 @@ class _IncomeHeader extends StatelessWidget {
             selectedDateKey: selectedDateKey,
             onSelected: onSelected,
           ),
-          if (day.hasFirstRead) ...[
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                '${I18n.incomeSinceFirstRead.tr} '
-                '${formatIncomeClock(day.firstReadAt)}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall,
-              ),
+          const SizedBox(width: 8),
+          _IncomeCompareDropdown(
+            options: HomeIncomeController.compareDayOptions,
+            selectedDays: compareDays,
+            onSelected: onCompare,
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              '${I18n.incomeBaseline.tr} $baseline',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall,
             ),
-          ],
+          ),
           const Spacer(),
           IconButton(
             tooltip: I18n.incomeRefresh.tr,
@@ -255,18 +266,81 @@ class _IncomeDateDropdown extends StatelessWidget {
   }
 }
 
+/// Compare-baseline selector rendered as a compact dropdown.
+class _IncomeCompareDropdown extends StatelessWidget {
+  const _IncomeCompareDropdown({
+    required this.options,
+    required this.selectedDays,
+    required this.onSelected,
+  });
+
+  final List<int> options;
+  final int selectedDays;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final label =
+        '${I18n.incomeCompare.tr} ${formatIncomeCompareDays(selectedDays)}';
+    return PopupMenuButton<int>(
+      tooltip: '',
+      onSelected: onSelected,
+      constraints: const BoxConstraints(minWidth: 120),
+      itemBuilder: (context) => [
+        for (final days in options)
+          PopupMenuItem<int>(
+            value: days,
+            child: Text(formatIncomeCompareDays(days)),
+          ),
+      ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: _kIncomeDropdownHorizontalPadding,
+          vertical: 6,
+        ),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.4,
+          ),
+          borderRadius: BorderRadius.circular(_kIncomeDropdownBorderRadius),
+          border: Border.all(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.compare_arrows_rounded,
+              size: 14,
+              color: theme.textTheme.bodySmall?.color,
+            ),
+            const SizedBox(width: 6),
+            Text(label, style: theme.textTheme.bodySmall),
+            Icon(
+              Icons.arrow_drop_down_rounded,
+              size: 18,
+              color: theme.textTheme.bodySmall?.color,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// One resource card: icon, localized label, amount and delta.
 class _IncomeCard extends StatelessWidget {
-  const _IncomeCard({required this.item, required this.showFirstRead});
+  const _IncomeCard({required this.item});
 
   final ScriptIncomeItem item;
-  final bool showFirstRead;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final iconPath = incomeItemIcon(item.name);
-    final delta = formatIncomeDelta(showFirstRead ? item.deltaFirst : null);
+    final delta = formatIncomeDelta(item.delta);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(

@@ -48,6 +48,14 @@ void main() {
     expect(formatIncomeClock(''), '');
   });
 
+  test('compare baselines are the three offered options', () {
+    expect(formatIncomeCompareDays(1), '1 天前');
+    expect(formatIncomeCompareDays(3), '3 天前');
+    expect(formatIncomeCompareDays(7), '7 天前');
+    // 后端将来加了别的窗口，先原样显示数字，不要空白
+    expect(formatIncomeCompareDays(10), '10');
+  });
+
   test('fields keep the backend order and a localized label', () {
     expect(incomeItemFields, [
       'gold',

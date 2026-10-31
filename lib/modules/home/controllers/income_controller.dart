@@ -7,6 +7,9 @@ import 'package:oasx/modules/home/models/script_income_models.dart';
 
 /// Drives the income (资产) panel for the active script.
 class HomeIncomeController extends GetxController {
+  /// Compare baselines offered by the panel header, in menu order.
+  static const List<int> compareDayOptions = <int>[1, 3, 7];
+
   /// Dashboard controller used to resolve the active script.
   final HomeDashboardController dashboardController =
       Get.find<HomeDashboardController>();
@@ -19,6 +22,9 @@ class HomeIncomeController extends GetxController {
 
   /// Snapshot currently rendered by the panel.
   final income = Rxn<ScriptIncomeDay>();
+
+  /// Baseline rule of the rendered change: `1` / `3` / `7` days before.
+  final compareDays = 1.obs;
 
   /// Whether the available dates list is loading.
   final datesLoading = false.obs;
@@ -51,11 +57,19 @@ class HomeIncomeController extends GetxController {
     return ApiClient().getScriptIncomeDates(scriptName);
   }
 
-  /// Fetches one day snapshot.
+  /// Fetches one day snapshot with the given compare baseline.
   ///
   /// Overridden by tests so the panel can be driven without a live backend.
-  Future<ScriptIncomeDay> fetchDay(String scriptName, String dateKey) {
-    return ApiClient().getScriptIncomeDay(scriptName, dateKey);
+  Future<ScriptIncomeDay> fetchDay(
+    String scriptName,
+    String dateKey, {
+    int compareDays = 1,
+  }) {
+    return ApiClient().getScriptIncomeDay(
+      scriptName,
+      dateKey,
+      compareDays: compareDays,
+    );
   }
 
   @override
@@ -119,6 +133,17 @@ class HomeIncomeController extends GetxController {
     unawaited(_loadSelectedDay());
   }
 
+  /// Switches the change baseline (`1` / `3` / `7` days before) and reloads
+  /// only the day, because the date list does not depend on it.
+  void selectCompareDays(int days) {
+    final normalized = compareDayOptions.contains(days) ? days : 1;
+    if (compareDays.value == normalized) {
+      return;
+    }
+    compareDays.value = normalized;
+    unawaited(_loadSelectedDay());
+  }
+
   /// Loads the available dates, then the selected day.
   Future<void> _loadDates(
     String scriptName, {
@@ -172,7 +197,11 @@ class HomeIncomeController extends GetxController {
     incomeLoading.value = true;
     lastErrorMessage.value = '';
     try {
-      final day = await fetchDay(scriptName, dateKey);
+      final day = await fetchDay(
+        scriptName,
+        dateKey,
+        compareDays: compareDays.value,
+      );
       if (revision != _dayRevision || scriptName != _boundScriptName) {
         return;
       }

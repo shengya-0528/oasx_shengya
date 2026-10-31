@@ -38,6 +38,9 @@ class _FakeIncome extends HomeIncomeController {
   /// Number of day requests served.
   int dayCalls = 0;
 
+  /// Baseline of the latest day request.
+  int lastCompareDays = 1;
+
   @override
   // ignore: must_call_super
   void onInit() {}
@@ -53,8 +56,13 @@ class _FakeIncome extends HomeIncomeController {
   }
 
   @override
-  Future<ScriptIncomeDay> fetchDay(String scriptName, String dateKey) async {
+  Future<ScriptIncomeDay> fetchDay(
+    String scriptName,
+    String dateKey, {
+    int compareDays = 1,
+  }) async {
     dayCalls++;
+    lastCompareDays = compareDays;
     final error = failure;
     if (error != null) {
       throw error;
@@ -67,13 +75,25 @@ class _FakeIncome extends HomeIncomeController {
   }
 }
 
-ScriptIncomeDay day(String dateKey, {int gold = 0, int? deltaFirst}) {
+ScriptIncomeDay day(
+  String dateKey, {
+  int gold = 0,
+  int? delta,
+  int? deltaFirst,
+  int compareDays = 1,
+}) {
   return ScriptIncomeDay.fromJson({
     'script_name': 'oas1',
     'date': dateKey,
     'first_dt': '$dateKey 03:00:00',
+    'compare_days': compareDays,
     'items': [
-      {'name': 'gold', 'value': gold, 'delta_first': deltaFirst},
+      {
+        'name': 'gold',
+        'value': gold,
+        'delta': delta,
+        'delta_first': deltaFirst,
+      },
     ],
   });
 }
@@ -169,6 +189,38 @@ void main() {
 
     expect(income.selectedDateKey.value, '2026-10-17');
     expect(income.income.value?.itemFor('gold')?.value, 99);
+  });
+
+  test('compare baseline starts at one day and reloads only the day', () async {
+    income.dates = ['2026-10-18'];
+    income.days['2026-10-18'] = day('2026-10-18', gold: 120, delta: -30);
+    dashboard.activeScriptName.value = 'oas1';
+    await income.syncIncomeBinding();
+
+    expect(income.compareDays.value, 1);
+    expect(income.lastCompareDays, 1);
+
+    income.selectCompareDays(7);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(income.compareDays.value, 7);
+    expect(income.lastCompareDays, 7);
+    // 日期列表与基准无关，切基准不该重拉它
+    expect(income.dateCalls, 1);
+    expect(income.dayCalls, 2);
+  });
+
+  test('an unsupported baseline falls back to one day', () async {
+    income.dates = ['2026-10-18'];
+    income.days['2026-10-18'] = day('2026-10-18', gold: 120);
+    dashboard.activeScriptName.value = 'oas1';
+    await income.syncIncomeBinding();
+
+    income.selectCompareDays(30);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(income.compareDays.value, 1);
+    expect(income.lastCompareDays, 1);
   });
 
   test('a vanished date falls back to the newest one', () async {

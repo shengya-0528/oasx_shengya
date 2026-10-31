@@ -145,3 +145,19 @@ String formatIncomeDayLabel(String dayKey) {
   }
   return DateFormat('MM-dd').format(value);
 }
+
+/// Formats one compare baseline (`1` / `3` / `7` days before).
+///
+/// Falls back to the bare number for a baseline the header does not offer yet,
+/// so a new option added on the backend never renders as an empty control.
+String formatIncomeCompareDays(int days) {
+  switch (days) {
+    case 1:
+      return I18n.incomeCompare1Day.tr;
+    case 3:
+      return I18n.incomeCompare3Days.tr;
+    case 7:
+      return I18n.incomeCompare7Days.tr;
+  }
+  return '$days';
+}

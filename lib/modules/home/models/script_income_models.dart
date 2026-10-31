@@ -49,6 +49,7 @@ class ScriptIncomeDay {
     required this.firstReadAt,
     required this.baselineDate,
     required this.items,
+    this.compareDays = 1,
   });
 
   /// Builds a day snapshot from the backend payload.
@@ -66,6 +67,7 @@ class ScriptIncomeDay {
       }
     }
     final backendDate = _readString(json['date']);
+    final compare = _readIntOrNull(json['compare_days']) ?? 1;
     return ScriptIncomeDay(
       scriptName: _readString(json['script_name']),
       dateKey: backendDate.isEmpty ? dateKey : backendDate,
@@ -73,6 +75,7 @@ class ScriptIncomeDay {
       firstReadAt: _readString(json['first_dt']),
       baselineDate: _readString(json['baseline_date']),
       items: items,
+      compareDays: compare < 0 ? 1 : compare,
     );
   }
 
@@ -90,6 +93,10 @@ class ScriptIncomeDay {
 
   /// Day used by [ScriptIncomeItem.delta], empty when nothing to compare.
   final String baselineDate;
+
+  /// Baseline rule the backend used: `1` / `3` / `7` days before the selected
+  /// day, `0` for the legacy "last recorded day" rule.
+  final int compareDays;
 
   /// Rows in backend order.
   final List<ScriptIncomeItem> items;

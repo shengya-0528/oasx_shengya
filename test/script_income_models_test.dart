@@ -72,6 +72,30 @@ void main() {
     expect(day.items.single.delta, isNull);
   });
 
+  test('parses the compare baseline chosen by the backend', () {
+    final day = ScriptIncomeDay.fromJson({
+      'script_name': 'oas1',
+      'date': '2026-10-18',
+      'baseline_date': '2026-10-11',
+      'compare_days': 7,
+      'items': const [],
+    });
+
+    expect(day.compareDays, 7);
+    expect(day.baselineDate, '2026-10-11');
+  });
+
+  test('missing compare field falls back to one day before', () {
+    final day = ScriptIncomeDay.fromJson({
+      'script_name': 'oas1',
+      'date': '2026-10-18',
+      'items': const [],
+    });
+
+    expect(day.compareDays, 1);
+    expect(day.baselineDate, isEmpty);
+  });
+
   test('parses the available dates newest first', () {
     final list = ScriptIncomeDateList.fromJson({
       'script_name': 'oas1',
