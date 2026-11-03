@@ -6,34 +6,34 @@
 // @dart = 3.9
 
 import 'dart:io'; // flutter_ignore: dart_io_import.
-import 'package:file_picker/file_picker.dart' as file_picker;
-import 'package:path_provider_android/path_provider_android.dart' as path_provider_android;
-import 'package:shared_preferences_android/shared_preferences_android.dart' as shared_preferences_android;
-import 'package:sqflite_android/sqflite_android.dart' as sqflite_android;
-import 'package:url_launcher_android/url_launcher_android.dart' as url_launcher_android;
-import 'package:file_picker/file_picker.dart' as file_picker;
-import 'package:path_provider_foundation/path_provider_foundation.dart' as path_provider_foundation;
-import 'package:shared_preferences_foundation/shared_preferences_foundation.dart' as shared_preferences_foundation;
-import 'package:sqflite_darwin/sqflite_darwin.dart' as sqflite_darwin;
-import 'package:url_launcher_ios/url_launcher_ios.dart' as url_launcher_ios;
-import 'package:connectivity_plus/connectivity_plus.dart' as connectivity_plus;
-import 'package:device_info_plus/device_info_plus.dart' as device_info_plus;
-import 'package:file_picker/file_picker.dart' as file_picker;
-import 'package:package_info_plus/package_info_plus.dart' as package_info_plus;
-import 'package:path_provider_linux/path_provider_linux.dart' as path_provider_linux;
-import 'package:shared_preferences_linux/shared_preferences_linux.dart' as shared_preferences_linux;
-import 'package:url_launcher_linux/url_launcher_linux.dart' as url_launcher_linux;
-import 'package:file_picker/file_picker.dart' as file_picker;
-import 'package:path_provider_foundation/path_provider_foundation.dart' as path_provider_foundation;
-import 'package:shared_preferences_foundation/shared_preferences_foundation.dart' as shared_preferences_foundation;
-import 'package:sqflite_darwin/sqflite_darwin.dart' as sqflite_darwin;
-import 'package:url_launcher_macos/url_launcher_macos.dart' as url_launcher_macos;
-import 'package:device_info_plus/device_info_plus.dart' as device_info_plus;
-import 'package:file_picker/file_picker.dart' as file_picker;
-import 'package:package_info_plus/package_info_plus.dart' as package_info_plus;
-import 'package:path_provider_windows/path_provider_windows.dart' as path_provider_windows;
-import 'package:shared_preferences_windows/shared_preferences_windows.dart' as shared_preferences_windows;
-import 'package:url_launcher_windows/url_launcher_windows.dart' as url_launcher_windows;
+import 'package:file_picker/file_picker.dart';
+import 'package:path_provider_android/path_provider_android.dart';
+import 'package:shared_preferences_android/shared_preferences_android.dart';
+import 'package:sqflite_android/sqflite_android.dart';
+import 'package:url_launcher_android/url_launcher_android.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:path_provider_foundation/path_provider_foundation.dart';
+import 'package:shared_preferences_foundation/shared_preferences_foundation.dart';
+import 'package:sqflite_darwin/sqflite_darwin.dart';
+import 'package:url_launcher_ios/url_launcher_ios.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path_provider_linux/path_provider_linux.dart';
+import 'package:shared_preferences_linux/shared_preferences_linux.dart';
+import 'package:url_launcher_linux/url_launcher_linux.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:path_provider_foundation/path_provider_foundation.dart';
+import 'package:shared_preferences_foundation/shared_preferences_foundation.dart';
+import 'package:sqflite_darwin/sqflite_darwin.dart';
+import 'package:url_launcher_macos/url_launcher_macos.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path_provider_windows/path_provider_windows.dart';
+import 'package:shared_preferences_windows/shared_preferences_windows.dart';
+import 'package:url_launcher_windows/url_launcher_windows.dart';
 
 @pragma('vm:entry-point')
 class _PluginRegistrant {
@@ -42,7 +42,7 @@ class _PluginRegistrant {
   static void register() {
     if (Platform.isAndroid) {
       try {
-        file_picker.FilePickerIO.registerWith();
+        FilePickerIO.registerWith();
       } catch (err) {
         print(
           '`file_picker` threw an error: $err. '
@@ -51,7 +51,7 @@ class _PluginRegistrant {
       }
 
       try {
-        path_provider_android.PathProviderAndroid.registerWith();
+        PathProviderAndroid.registerWith();
       } catch (err) {
         print(
           '`path_provider_android` threw an error: $err. '
@@ -60,7 +60,7 @@ class _PluginRegistrant {
       }
 
       try {
-        shared_preferences_android.SharedPreferencesAndroid.registerWith();
+        SharedPreferencesAndroid.registerWith();
       } catch (err) {
         print(
           '`shared_preferences_android` threw an error: $err. '
@@ -69,7 +69,7 @@ class _PluginRegistrant {
       }
 
       try {
-        sqflite_android.SqfliteAndroid.registerWith();
+        SqfliteAndroid.registerWith();
       } catch (err) {
         print(
           '`sqflite_android` threw an error: $err. '
@@ -78,7 +78,7 @@ class _PluginRegistrant {
       }
 
       try {
-        url_launcher_android.UrlLauncherAndroid.registerWith();
+        UrlLauncherAndroid.registerWith();
       } catch (err) {
         print(
           '`url_launcher_android` threw an error: $err. '
@@ -88,7 +88,7 @@ class _PluginRegistrant {
 
     } else if (Platform.isIOS) {
       try {
-        file_picker.FilePickerIO.registerWith();
+        FilePickerIO.registerWith();
       } catch (err) {
         print(
           '`file_picker` threw an error: $err. '
@@ -97,7 +97,7 @@ class _PluginRegistrant {
       }
 
       try {
-        path_provider_foundation.PathProviderFoundation.registerWith();
+        PathProviderFoundation.registerWith();
       } catch (err) {
         print(
           '`path_provider_foundation` threw an error: $err. '
@@ -106,7 +106,7 @@ class _PluginRegistrant {
       }
 
       try {
-        shared_preferences_foundation.SharedPreferencesFoundation.registerWith();
+        SharedPreferencesFoundation.registerWith();
       } catch (err) {
         print(
           '`shared_preferences_foundation` threw an error: $err. '
@@ -115,7 +115,7 @@ class _PluginRegistrant {
       }
 
       try {
-        sqflite_darwin.SqfliteDarwin.registerWith();
+        SqfliteDarwin.registerWith();
       } catch (err) {
         print(
           '`sqflite_darwin` threw an error: $err. '
@@ -124,7 +124,7 @@ class _PluginRegistrant {
       }
 
       try {
-        url_launcher_ios.UrlLauncherIOS.registerWith();
+        UrlLauncherIOS.registerWith();
       } catch (err) {
         print(
           '`url_launcher_ios` threw an error: $err. '
@@ -134,7 +134,7 @@ class _PluginRegistrant {
 
     } else if (Platform.isLinux) {
       try {
-        connectivity_plus.ConnectivityPlusLinuxPlugin.registerWith();
+        ConnectivityPlusLinuxPlugin.registerWith();
       } catch (err) {
         print(
           '`connectivity_plus` threw an error: $err. '
@@ -143,7 +143,7 @@ class _PluginRegistrant {
       }
 
       try {
-        device_info_plus.DeviceInfoPlusLinuxPlugin.registerWith();
+        DeviceInfoPlusLinuxPlugin.registerWith();
       } catch (err) {
         print(
           '`device_info_plus` threw an error: $err. '
@@ -152,7 +152,7 @@ class _PluginRegistrant {
       }
 
       try {
-        file_picker.FilePickerLinux.registerWith();
+        FilePickerLinux.registerWith();
       } catch (err) {
         print(
           '`file_picker` threw an error: $err. '
@@ -161,7 +161,7 @@ class _PluginRegistrant {
       }
 
       try {
-        package_info_plus.PackageInfoPlusLinuxPlugin.registerWith();
+        PackageInfoPlusLinuxPlugin.registerWith();
       } catch (err) {
         print(
           '`package_info_plus` threw an error: $err. '
@@ -170,7 +170,7 @@ class _PluginRegistrant {
       }
 
       try {
-        path_provider_linux.PathProviderLinux.registerWith();
+        PathProviderLinux.registerWith();
       } catch (err) {
         print(
           '`path_provider_linux` threw an error: $err. '
@@ -179,7 +179,7 @@ class _PluginRegistrant {
       }
 
       try {
-        shared_preferences_linux.SharedPreferencesLinux.registerWith();
+        SharedPreferencesLinux.registerWith();
       } catch (err) {
         print(
           '`shared_preferences_linux` threw an error: $err. '
@@ -188,7 +188,7 @@ class _PluginRegistrant {
       }
 
       try {
-        url_launcher_linux.UrlLauncherLinux.registerWith();
+        UrlLauncherLinux.registerWith();
       } catch (err) {
         print(
           '`url_launcher_linux` threw an error: $err. '
@@ -198,7 +198,7 @@ class _PluginRegistrant {
 
     } else if (Platform.isMacOS) {
       try {
-        file_picker.FilePickerMacOS.registerWith();
+        FilePickerMacOS.registerWith();
       } catch (err) {
         print(
           '`file_picker` threw an error: $err. '
@@ -207,7 +207,7 @@ class _PluginRegistrant {
       }
 
       try {
-        path_provider_foundation.PathProviderFoundation.registerWith();
+        PathProviderFoundation.registerWith();
       } catch (err) {
         print(
           '`path_provider_foundation` threw an error: $err. '
@@ -216,7 +216,7 @@ class _PluginRegistrant {
       }
 
       try {
-        shared_preferences_foundation.SharedPreferencesFoundation.registerWith();
+        SharedPreferencesFoundation.registerWith();
       } catch (err) {
         print(
           '`shared_preferences_foundation` threw an error: $err. '
@@ -225,7 +225,7 @@ class _PluginRegistrant {
       }
 
       try {
-        sqflite_darwin.SqfliteDarwin.registerWith();
+        SqfliteDarwin.registerWith();
       } catch (err) {
         print(
           '`sqflite_darwin` threw an error: $err. '
@@ -234,7 +234,7 @@ class _PluginRegistrant {
       }
 
       try {
-        url_launcher_macos.UrlLauncherMacOS.registerWith();
+        UrlLauncherMacOS.registerWith();
       } catch (err) {
         print(
           '`url_launcher_macos` threw an error: $err. '
@@ -244,7 +244,7 @@ class _PluginRegistrant {
 
     } else if (Platform.isWindows) {
       try {
-        device_info_plus.DeviceInfoPlusWindowsPlugin.registerWith();
+        DeviceInfoPlusWindowsPlugin.registerWith();
       } catch (err) {
         print(
           '`device_info_plus` threw an error: $err. '
@@ -253,7 +253,7 @@ class _PluginRegistrant {
       }
 
       try {
-        file_picker.FilePickerWindows.registerWith();
+        FilePickerWindows.registerWith();
       } catch (err) {
         print(
           '`file_picker` threw an error: $err. '
@@ -262,7 +262,7 @@ class _PluginRegistrant {
       }
 
       try {
-        package_info_plus.PackageInfoPlusWindowsPlugin.registerWith();
+        PackageInfoPlusWindowsPlugin.registerWith();
       } catch (err) {
         print(
           '`package_info_plus` threw an error: $err. '
@@ -271,7 +271,7 @@ class _PluginRegistrant {
       }
 
       try {
-        path_provider_windows.PathProviderWindows.registerWith();
+        PathProviderWindows.registerWith();
       } catch (err) {
         print(
           '`path_provider_windows` threw an error: $err. '
@@ -280,7 +280,7 @@ class _PluginRegistrant {
       }
 
       try {
-        shared_preferences_windows.SharedPreferencesWindows.registerWith();
+        SharedPreferencesWindows.registerWith();
       } catch (err) {
         print(
           '`shared_preferences_windows` threw an error: $err. '
@@ -289,7 +289,7 @@ class _PluginRegistrant {
       }
 
       try {
-        url_launcher_windows.UrlLauncherWindows.registerWith();
+        UrlLauncherWindows.registerWith();
       } catch (err) {
         print(
           '`url_launcher_windows` threw an error: $err. '
