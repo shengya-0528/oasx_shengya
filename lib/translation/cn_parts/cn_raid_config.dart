@@ -10,4 +10,6 @@ final Map<String, String> _cn_raid_config = {
   'ryou_access_help': '',
   'random_delay': '随机延迟',
   'random_delay_help': '正式进攻会设定 2s - 10s 的随机延迟，避免攻击间隔极其相近被检测为脚本。',
+  'reverse_attack': '从后往前打',
+  'reverse_attack_help': '先滑到寮突破成员列表底部（已攻破那一段），再从后往前逐个找可攻击目标。',
 };
