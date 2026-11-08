@@ -63,6 +63,7 @@ part 'cn_parts/cn_demon_encounter_config.dart';
 part 'cn_parts/cn_memory_scrolls_config.dart';
 part 'cn_parts/cn_demon_retreat_config.dart';
 part 'cn_parts/cn_dye_trials_config.dart';
+part 'cn_parts/cn_tasks_fields.dart';
 
 class Messages extends Translations {
   @override
@@ -90,6 +91,8 @@ class Messages extends Translations {
   }
 
   late final Map<String, String> all_cn_translate = {
+    // 集中式字段名表放最前：已有的模块词表优先，避免以后重复添加时被覆盖。
+    ..._cn_tasks_fields,
     ..._cn_ui,
     ..._cn_menu,
     ..._cn_script,

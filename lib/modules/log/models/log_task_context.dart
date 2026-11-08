@@ -1,13 +1,22 @@
+import 'package:get/get.dart';
 import 'package:oasx/translation/i18n.dart';
 
-/// Canonical names keep upper-case logger headings translatable in the UI.
-final _taskNames = <String, String>{
-  for (final key in Messages().all_cn_translate.keys)
-    key.replaceAll(RegExp(r'[\s_]'), '').toUpperCase(): key,
-};
-
-String _canonicalTask(String value) =>
-    _taskNames[value.replaceAll(RegExp(r'[\s_]'), '').toUpperCase()] ?? value;
+/// Use the same runtime translations as the task catalog, including backend additions.
+/// Resolve on demand because remote translations may arrive after logs are opened.
+String _canonicalTask(String value) {
+  String normalize(String text) =>
+      text.replaceAll(RegExp(r'[\s_]'), '').toUpperCase();
+  final normalized = normalize(value);
+  for (final translations in [
+    ...Get.translations.values,
+    Messages().all_cn_translate,
+  ]) {
+    for (final key in translations.keys) {
+      if (normalize(key) == normalized) return key;
+    }
+  }
+  return value;
+}
 
 /// Tracks only level-0 task headings, not battle/page subheadings.
 /// save_error_log keeps the final separator plus the preceding two lines,
