@@ -48,10 +48,10 @@ void main() {
     expect(formatIncomeClock(''), '');
   });
 
-  test('compare baselines are the three offered options', () {
-    expect(formatIncomeCompareDays(1), '1 天前');
-    expect(formatIncomeCompareDays(3), '3 天前');
-    expect(formatIncomeCompareDays(7), '7 天前');
+  test('compare baselines are day, week and month', () {
+    expect(formatIncomeCompareDays(1), '日环比');
+    expect(formatIncomeCompareDays(7), '周环比');
+    expect(formatIncomeCompareDays(30), '月环比');
     // 后端将来加了别的窗口，先原样显示数字，不要空白
     expect(formatIncomeCompareDays(10), '10');
   });
@@ -61,11 +61,19 @@ void main() {
       'gold',
       'jade',
       'ap',
+      'auto_point',
+      'honor',
+      'medal',
+      'contrib',
+      'broken_amulet',
+      'mystery_amulet',
       'sca_orochi_scales',
       'sca_reverse_scale',
       'sca_demon_souls',
-      'sca_picture_book',
-      'mystery_amulet',
+      'hyakki_ticket',
+      'daruma',
+      'daruma_shard',
+      'qiyi',
     ]);
     expect(incomeItemLabel('gold'), '金币');
     expect(incomeItemLabel('mystery_amulet'), '神秘的符咒');
@@ -79,9 +87,8 @@ void main() {
       incomeItemIcon('mystery_amulet'),
       'assets/images/income/mystery_amulet.png',
     );
-    // 鱼皮 = 被遗忘的绘本，文件名沿用主人给的叫法
-    expect(incomeItemIcon('sca_picture_book'), 'assets/images/income/鱼皮.png');
-    // 8 个字段都有图；以后后端加字段时这里会先失败，提醒补图
+    expect(incomeItemIcon('qiyi'), 'assets/images/income/qiyi.png');
+    // 16 个字段都有图；以后后端加字段时这里会先失败，提醒补图
     final withIcon = incomeItemFields.where(
       (field) => incomeItemIcon(field) != null,
     );

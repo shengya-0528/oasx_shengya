@@ -19,6 +19,7 @@ enum StorageKey {
   homeControlScriptList,
   homeWorkbenchCollectionWidth,
   homeWorkbenchSplitRatio,
+  homeFavoriteTaskNames,
   autoDeploy,
   illustrationEnabled,
   illustrationTransparency,

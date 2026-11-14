@@ -25,7 +25,7 @@ class TaskStatusPanel extends StatefulWidget {
   final bool Function(String taskName) canQuickScheduleTask;
   final Future<void> Function(String taskName, String nextRun) onSetNextRun;
   final Future<void> Function(String taskName) onQuickRun;
-  final Future<void> Function(String taskName) onQuickWait;
+  final Future<void> Function(String taskName, String nextRun) onQuickWait;
   final Future<void> Function(String taskName) onEditTask;
   final DateTime? scheduledDate;
   final bool compact;
@@ -102,6 +102,7 @@ class _TaskStatusPanelState extends State<TaskStatusPanel> {
                           canQuickSchedule: widget.canQuickScheduleTask(
                             task.name,
                           ),
+                          canQuickWait: true,
                           quickScheduleLocked: quickScheduleLocked,
                           onSetNextRun: widget.onSetNextRun,
                           onQuickRun: widget.onQuickRun,

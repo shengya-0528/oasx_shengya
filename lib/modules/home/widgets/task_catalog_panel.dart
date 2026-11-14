@@ -26,7 +26,7 @@ class TaskCatalogPanel extends StatefulWidget {
   final ScriptModel scriptModel;
   final Future<void> Function(String taskName) onOpenTask;
   final Future<void> Function(String taskName) onQuickRun;
-  final Future<void> Function(String taskName) onQuickWait;
+  final Future<void> Function(String taskName, String nextRun) onQuickWait;
   final bool gridLayout;
   final bool inlineParameters;
 
@@ -140,7 +140,9 @@ class _TaskCatalogPanelState extends State<TaskCatalogPanel> {
                   controller: widget.controller,
                   sourceScriptName: widget.scriptModel.name,
                   section: sections[index],
-                  expanded: _expandedGroups.contains(sections[index].groupName),
+                  expanded:
+                      sections[index].groupName == I18n.homeFavorites ||
+                      _expandedGroups.contains(sections[index].groupName),
                   forceExpanded: _searchQuery.isNotEmpty,
                   togglingTasks: _togglingTasks,
                   onToggleExpanded: () =>
@@ -240,6 +242,29 @@ class _TaskCatalogPanelState extends State<TaskCatalogPanel> {
             groupName: entry.key,
             tasks: tasks,
             allTaskNames: allTaskNames,
+          ),
+        );
+      }
+    }
+    final favorites = widget.controller.favoriteTaskNames;
+    if (favorites.isNotEmpty) {
+      final favoriteTasks = <_CatalogTaskData>[];
+      for (final section in sections) {
+        for (final task in section.tasks) {
+          if (favorites.contains(task.name)) {
+            favoriteTasks.add(task);
+          }
+        }
+      }
+      if (favoriteTasks.isNotEmpty) {
+        sections.insert(
+          0,
+          _CatalogSectionData(
+            groupName: I18n.homeFavorites,
+            tasks: favoriteTasks,
+            allTaskNames: favoriteTasks
+                .map((task) => task.name)
+                .toList(),
           ),
         );
       }
@@ -433,13 +458,13 @@ class _CatalogTaskRow extends StatelessWidget {
   final ValueChanged<bool> onToggleEnabled;
   final Future<void> Function(String taskName) onOpenTask;
   final Future<void> Function(String taskName) onQuickRun;
-  final Future<void> Function(String taskName) onQuickWait;
+  final Future<void> Function(String taskName, String nextRun) onQuickWait;
   final bool Function(String taskName) canQuickScheduleTask;
   final bool quickScheduleLocked;
   final bool dragEnabled;
   final ConfigDragPayload? activeDragPayload;
   final bool compact;
-  static const _actionExtent = 132.0;
+  static const _actionExtent = 172.0;
   static const _minRowHeight = 40.0;
 
   @override
@@ -454,6 +479,7 @@ class _CatalogTaskRow extends StatelessWidget {
     ).colorScheme.primaryContainer.withValues(alpha: 0.42);
     final isScriptGroup = task.groupName == I18n.script;
     final supportsEnable = !isScriptGroup || task.name == I18n.restart;
+    final isFavorite = controller.favoriteTaskNames.contains(task.name);
     final payload = controller.buildTaskDragPayload(
       sourceConfig: sourceScriptName,
       taskName: task.name,
@@ -507,6 +533,26 @@ class _CatalogTaskRow extends StatelessWidget {
                         )
                       : label,
                 ),
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 26,
+                    height: 30,
+                  ),
+                  iconSize: 15,
+                  tooltip:
+                      (isFavorite
+                              ? I18n.homeFavoriteRemove
+                              : I18n.homeFavoriteAdd)
+                          .tr,
+                  onPressed: () => controller.toggleFavoriteTask(task.name),
+                  icon: Icon(
+                    isFavorite
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                    color: isFavorite ? Colors.redAccent : null,
+                  ),
+                ),
                 for (final quickRun in [true, false])
                   IconButton(
                     padding: EdgeInsets.zero,
@@ -518,10 +564,13 @@ class _CatalogTaskRow extends StatelessWidget {
                     tooltip:
                         (quickRun ? I18n.homeQuickRun : I18n.homeQuickWait).tr,
                     onPressed:
-                        !quickScheduleLocked && canQuickScheduleTask(task.name)
+                        !quickScheduleLocked &&
+                            (quickRun
+                                ? canQuickScheduleTask(task.name)
+                                : true)
                         ? () => quickRun
                               ? onQuickRun(task.name)
-                              : onQuickWait(task.name)
+                              : onQuickWait(task.name, '')
                         : null,
                     icon: Icon(
                       quickRun
@@ -555,6 +604,9 @@ class _CatalogTaskRow extends StatelessWidget {
             onQuickWait: onQuickWait,
             canQuickSchedule: canQuickScheduleTask(task.name),
             quickScheduleLocked: quickScheduleLocked,
+            isFavorite: isFavorite,
+            onToggleFavorite: () =>
+                controller.toggleFavoriteTask(task.name),
           ),
           leading: Row(
             mainAxisSize: MainAxisSize.min,
@@ -658,7 +710,7 @@ class _CatalogSectionCard extends StatelessWidget {
   onToggleEnabled;
   final Future<void> Function(String taskName) onOpenTask;
   final Future<void> Function(String taskName) onQuickRun;
-  final Future<void> Function(String taskName) onQuickWait;
+  final Future<void> Function(String taskName, String nextRun) onQuickWait;
   final bool Function(String taskName) canQuickScheduleTask;
   final bool quickScheduleLocked;
   final bool dragEnabled;
@@ -802,14 +854,18 @@ class _TaskIconBar extends StatelessWidget {
     required this.onQuickWait,
     required this.canQuickSchedule,
     required this.quickScheduleLocked,
+    required this.isFavorite,
+    required this.onToggleFavorite,
   });
 
   final _CatalogTaskData task;
   final Future<void> Function(String taskName) onOpenTask;
   final Future<void> Function(String taskName) onQuickRun;
-  final Future<void> Function(String taskName) onQuickWait;
+  final Future<void> Function(String taskName, String nextRun) onQuickWait;
   final bool canQuickSchedule;
   final bool quickScheduleLocked;
+  final bool isFavorite;
+  final VoidCallback onToggleFavorite;
 
   @override
   Widget build(BuildContext context) {
@@ -818,6 +874,16 @@ class _TaskIconBar extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        _IconOnlyButton(
+          icon: isFavorite
+              ? Icons.favorite_rounded
+              : Icons.favorite_border_rounded,
+          color: isFavorite ? Colors.redAccent : null,
+          tooltip:
+              (isFavorite ? I18n.homeFavoriteRemove : I18n.homeFavoriteAdd)
+                  .tr,
+          onPressed: onToggleFavorite,
+        ),
         if (showQuickActions)
           _IconOnlyButton(
             icon: Icons.flash_on_rounded,
@@ -830,8 +896,8 @@ class _TaskIconBar extends StatelessWidget {
           _IconOnlyButton(
             icon: Icons.schedule_rounded,
             tooltip: I18n.homeQuickWait.tr,
-            onPressed: task.enabled && canQuickSchedule && !quickScheduleLocked
-                ? () => onQuickWait(task.name)
+            onPressed: task.enabled && !quickScheduleLocked
+                ? () => onQuickWait(task.name, '')
                 : null,
           ),
         _IconOnlyButton(
@@ -849,11 +915,13 @@ class _IconOnlyButton extends StatelessWidget {
     required this.icon,
     required this.tooltip,
     required this.onPressed,
+    this.color,
   });
 
   final IconData icon;
   final String tooltip;
   final VoidCallback? onPressed;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -861,7 +929,7 @@ class _IconOnlyButton extends StatelessWidget {
       tooltip: tooltip,
       constraints: const BoxConstraints.tightFor(width: 40, height: 40),
       onPressed: onPressed,
-      icon: Icon(icon),
+      icon: Icon(icon, color: color),
     );
   }
 }

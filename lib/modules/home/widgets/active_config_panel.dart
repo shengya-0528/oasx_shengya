@@ -44,7 +44,7 @@ class ActiveConfigPanel extends StatelessWidget {
   final Future<void> Function(String scriptName) onDeleteScript;
   final Future<void> Function(String taskName, String nextRun) onSetNextRun;
   final Future<void> Function(String taskName) onQuickRun;
-  final Future<void> Function(String taskName) onQuickWait;
+  final Future<void> Function(String taskName, String nextRun) onQuickWait;
   final Future<void> Function() onBulkQuickRun;
   final Future<void> Function() onBulkQuickWait;
   final VoidCallback? onExpandRightSidebar;

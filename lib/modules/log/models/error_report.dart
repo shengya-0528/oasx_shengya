@@ -10,6 +10,22 @@ class ErrorLogSummary {
   final String task;
   final String type;
 
+  /// OAS 保存错误快照时写在 `log.txt` 第一行的元数据。
+  ///
+  /// `# error-meta task=<任务>\ttype=<异常类>\tmessage=<单行描述>`
+  /// 它比从日志正文里猜任务名可靠；老快照没有这一行，仍然走正文推断。
+  static const String _metaPrefix = '# error-meta ';
+
+  static Map<String, String> _parseMeta(String text) {
+    final values = <String, String>{};
+    for (final pair in text.split('\t')) {
+      final eq = pair.indexOf('=');
+      if (eq <= 0) continue;
+      values[pair.substring(0, eq).trim()] = pair.substring(eq + 1).trim();
+    }
+    return values;
+  }
+
   factory ErrorLogSummary.parse(String text, {bool truncated = false}) {
     final tasks = LogTaskContext();
     var type = '未知错误';
@@ -18,7 +34,17 @@ class ErrorLogSummary {
     final exception = RegExp(
       r'^\s*(?:[\w.]+\.)?([A-Za-z_]\w*(?:Error|Exception)|KeyboardInterrupt|SystemExit):',
     );
+    String? metaTask;
+    String? metaType;
+    String? metaMessage;
     for (final line in const LineSplitter().convert(text)) {
+      if (line.startsWith(_metaPrefix)) {
+        final values = _parseMeta(line.substring(_metaPrefix.length));
+        metaTask ??= values['task'];
+        metaType ??= values['type'];
+        metaMessage ??= values['message'];
+        continue;
+      }
       tasks.consume(line);
       final error = exception.firstMatch(line);
       if (error != null) {
@@ -26,15 +52,29 @@ class ErrorLogSummary {
         errorTask = tasks.task ?? tasks.fallbackTask;
         sawError = true;
       } else {
-        final level = RegExp(
-          r'\|\s*(ERROR|CRITICAL)\s*\|\s*(.+)',
-        ).firstMatch(line);
+        final level =
+            RegExp(
+              r'\|\s*(ERROR|CRITICAL)\s*\|\s*(.+)',
+            ).firstMatch(line) ??
+            // 新版日志把级别放在行首：`ERROR   | 19:40:50.320 | ...`
+            RegExp(
+              r'^\s*(ERROR|CRITICAL)\s*\|\s*[\d:.,]+\s*\|\s*(.+)$',
+            ).firstMatch(line);
         if (level != null) {
           if (type == '未知错误') type = level.group(2)!.trim();
           errorTask = tasks.task ?? tasks.fallbackTask;
           sawError = true;
         }
       }
+    }
+    if ((metaType ?? '').isNotEmpty) {
+      final task = (metaTask ?? '').isNotEmpty
+          ? metaTask!
+          : tasks.task ?? tasks.fallbackTask ?? '未知任务';
+      final type = (metaMessage ?? '').isNotEmpty
+          ? '${metaType!}: ${metaMessage!}'
+          : metaType!;
+      return ErrorLogSummary(task, type);
     }
     return ErrorLogSummary(
       truncated

@@ -20,8 +20,8 @@ const _kIncomeDateMenuMaxVisibleItems = 6;
 /// Main income (资产) tab content for the active script.
 ///
 /// One card per resource shows the amount read from the last snapshot of the
-/// selected day plus its change against the chosen baseline (1 / 3 / 7 days
-/// before), so a long-running script can be watched without opening the game UI.
+/// selected day plus its change against the chosen baseline (day / week / month),
+/// so a long-running script can be watched without opening the game UI.
 class ScriptIncomePanel extends StatelessWidget {
   /// Creates the income panel.
   const ScriptIncomePanel({super.key});
@@ -58,7 +58,8 @@ class ScriptIncomePanel extends StatelessWidget {
             onSelected: controller.selectDate,
             onRefresh: controller.isLoading
                 ? null
-                : () => unawaited(controller.reload()),
+                : () => unawaited(controller.refreshByRead()),
+            reading: controller.reading.value,
             compareDays: controller.compareDays.value,
             onCompare: controller.selectCompareDays,
           ),
@@ -140,6 +141,7 @@ class _IncomeHeader extends StatelessWidget {
     required this.onRefresh,
     required this.compareDays,
     required this.onCompare,
+    required this.reading,
   });
 
   final ScriptIncomeDay day;
@@ -149,6 +151,7 @@ class _IncomeHeader extends StatelessWidget {
   final VoidCallback? onRefresh;
   final int compareDays;
   final ValueChanged<int> onCompare;
+  final bool reading;
 
   @override
   Widget build(BuildContext context) {
@@ -192,7 +195,13 @@ class _IncomeHeader extends StatelessWidget {
             tooltip: I18n.incomeRefresh.tr,
             visualDensity: VisualDensity.compact,
             onPressed: onRefresh,
-            icon: const Icon(Icons.refresh_rounded, size: 18),
+            icon: reading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.refresh_rounded, size: 18),
           ),
         ],
       ),
@@ -281,8 +290,7 @@ class _IncomeCompareDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final label =
-        '${I18n.incomeCompare.tr} ${formatIncomeCompareDays(selectedDays)}';
+    final label = formatIncomeCompareDays(selectedDays);
     return PopupMenuButton<int>(
       tooltip: '',
       onSelected: onSelected,

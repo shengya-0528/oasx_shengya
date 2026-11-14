@@ -4,11 +4,22 @@ import 'package:get/get.dart';
 import 'package:oasx/api/api_client.dart';
 import 'package:oasx/modules/home/controllers/dashboard_controller.dart';
 import 'package:oasx/modules/home/models/script_income_models.dart';
+import 'package:oasx/translation/i18n_content.dart';
+
+/// How often the panel re-reads the stored snapshot while a read runs.
+const _kIncomeReadPollInterval = Duration(seconds: 2);
+
+/// How many polls the panel waits before it reports a timeout.
+const _kIncomeReadPollAttempts = 30;
 
 /// Drives the income (资产) panel for the active script.
 class HomeIncomeController extends GetxController {
-  /// Compare baselines offered by the panel header, in menu order.
-  static const List<int> compareDayOptions = <int>[1, 3, 7];
+  /// Task whose one-off run reads the device for this panel.
+  static const String resourceReadTaskName = 'ResourceStats';
+
+  /// Compare baselines offered by the panel header, in menu order:
+  /// 1 = day over day, 7 = week over week, 30 = month over month.
+  static const List<int> compareDayOptions = <int>[1, 7, 30];
 
   /// Dashboard controller used to resolve the active script.
   final HomeDashboardController dashboardController =
@@ -23,7 +34,7 @@ class HomeIncomeController extends GetxController {
   /// Snapshot currently rendered by the panel.
   final income = Rxn<ScriptIncomeDay>();
 
-  /// Baseline rule of the rendered change: `1` / `3` / `7` days before.
+  /// Baseline rule of the rendered change: `1` / `7` / `30` days before.
   final compareDays = 1.obs;
 
   /// Whether the available dates list is loading.
@@ -31,6 +42,9 @@ class HomeIncomeController extends GetxController {
 
   /// Whether one selected-date snapshot request is loading.
   final incomeLoading = false.obs;
+
+  /// Whether a device read fired from this panel is still running.
+  final reading = false.obs;
 
   /// Latest user-visible error message.
   final lastErrorMessage = ''.obs;
@@ -48,7 +62,8 @@ class HomeIncomeController extends GetxController {
   int _dayRevision = 0;
 
   /// Whether the panel is waiting for any request.
-  bool get isLoading => datesLoading.value || incomeLoading.value;
+  bool get isLoading =>
+      datesLoading.value || incomeLoading.value || reading.value;
 
   /// Fetches every date that has an income snapshot.
   ///
@@ -123,6 +138,53 @@ class HomeIncomeController extends GetxController {
     await _loadDates(scriptName, keepSelection: true);
   }
 
+  /// Runs the resource task once, then reloads until a new snapshot lands.
+  ///
+  /// [reload] only re-reads the snapshot already stored on the backend; the
+  /// panel refresh button uses this instead so it really reads the device.
+  Future<void> refreshByRead() async {
+    final scriptName = dashboardController.activeScriptName.value.trim();
+    if (scriptName.isEmpty || reading.value) {
+      return;
+    }
+    final before = income.value?.collectedAt ?? '';
+    reading.value = true;
+    lastErrorMessage.value = '';
+    try {
+      // 先在配置里立一个 force_next 标志，任务跑起来才知道这一趟是手动要的，
+      // 不该被「今天已经统计过」挡掉。
+      final forced = await ApiClient().forceScriptTaskRead(
+        scriptName,
+        resourceReadTaskName,
+      );
+      if (!forced) {
+        lastErrorMessage.value = I18n.incomeReadUnavailable.tr;
+        return;
+      }
+      final started = await dashboardController.quickScheduleTask(
+        scriptName: scriptName,
+        taskName: resourceReadTaskName,
+        runNow: true,
+      );
+      if (!started) {
+        lastErrorMessage.value = I18n.incomeReadUnavailable.tr;
+        return;
+      }
+      for (var attempt = 0; attempt < _kIncomeReadPollAttempts; attempt++) {
+        await Future<void>.delayed(_kIncomeReadPollInterval);
+        await reload();
+        final after = income.value?.collectedAt ?? '';
+        if (after.isNotEmpty && after != before) {
+          lastErrorMessage.value = '';
+          return;
+        }
+      }
+      lastErrorMessage.value = I18n.incomeReadTimeout.tr;
+    } finally {
+      reading.value = false;
+    }
+  }
+
   /// Selects one date and loads its snapshot.
   void selectDate(String dateKey) {
     final key = dateKey.trim();
@@ -133,7 +195,7 @@ class HomeIncomeController extends GetxController {
     unawaited(_loadSelectedDay());
   }
 
-  /// Switches the change baseline (`1` / `3` / `7` days before) and reloads
+  /// Switches the change baseline (`1` / `7` / `30` days before) and reloads
   /// only the day, because the date list does not depend on it.
   void selectCompareDays(int days) {
     final normalized = compareDayOptions.contains(days) ? days : 1;

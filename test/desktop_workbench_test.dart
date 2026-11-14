@@ -288,25 +288,19 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
       expect(scroll.offset, greaterThan(before));
-      final distribution = find.byType(TaskDateDistribution);
-      final panel = tester.getRect(distribution);
+      // 日期分布卡已移除：右列直接是任务列表。
+      expect(find.byType(TaskDateDistribution), findsNothing);
+      final scheduleRect = tester.getRect(
+        find.byKey(const ValueKey('desktop-task-schedule')),
+      );
       controller.activeWorkbenchSidebarTab.value = HomeWorkbenchTab.logs;
       await tester.pump(const Duration(milliseconds: 400));
       final logControls = tester.getRect(
         find.byKey(const ValueKey('desktop-log-controls')),
       );
       expect(logControls.height, lessThan(140));
-      final dateCard = tester.getRect(
-        find.ancestor(of: distribution, matching: find.byType(Card)).first,
-      );
-      expect(logControls.bottom, lessThan(dateCard.bottom));
+      expect(logControls.bottom, lessThan(scheduleRect.bottom));
       controller.activeWorkbenchSidebarTab.value = HomeWorkbenchTab.stats;
-      await tester.pump(const Duration(milliseconds: 400));
-      final bodyCenter = tester.getCenter(
-        find.byKey(const ValueKey('task-date-distribution-center')),
-      );
-      expect(bodyCenter.dy, greaterThan(panel.top + 40));
-      expect(bodyCenter.dy, lessThan(panel.bottom - 35));
       await tester.pump(const Duration(milliseconds: 400));
       expect(tester.takeException(), isNull);
       tester.view.physicalSize = const Size(1200, 800);
@@ -397,7 +391,7 @@ void main() {
                   controller.canQuickScheduleTask(model, name),
               onSetNextRun: (_, __) async {},
               onQuickRun: (_) async {},
-              onQuickWait: (_) async {
+              onQuickWait: (_, __) async {
                 waits++;
               },
               onEditTask: (_) async {},
@@ -418,7 +412,8 @@ void main() {
     for (var cycle = 0; cycle < 3; cycle++) {
       model.state.value = ScriptState.running;
       await tester.pump();
-      expect(tester.widget<IconButton>(wait).onPressed, isNull);
+      // 立即等待在任务执行中也要能按（点了就顺延，不影响当前任务的收尾）。
+      expect(tester.widget<IconButton>(wait).onPressed, isNotNull);
       expect(tester.widget<TaskStatusRow>(row).swipeEnabled, isFalse);
       model.state.value = ScriptState.inactive;
       await tester.pump();

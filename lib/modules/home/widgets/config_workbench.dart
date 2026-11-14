@@ -67,7 +67,8 @@ class ConfigWorkbench extends StatelessWidget {
         onDeleteScript: (scriptName) => _deleteScript(context, scriptName),
         onSetNextRun: _setTaskNextRun,
         onQuickRun: (taskName) => _quickSchedule(taskName, true),
-        onQuickWait: (taskName) => _quickSchedule(taskName, false),
+        onQuickWait: (taskName, nextRun) =>
+            _quickSchedule(taskName, false, currentNextRun: nextRun),
         onBulkQuickRun: () => _bulkQuickSchedule(true),
         onBulkQuickWait: () => _bulkQuickSchedule(false),
         onExpandRightSidebar: onExpandRightSidebar,
@@ -107,7 +108,8 @@ class ConfigWorkbench extends StatelessWidget {
               _openTaskFromSource(context, task, source),
           onSetNextRun: _setTaskNextRun,
           onQuickRun: (task) => _quickSchedule(task, true),
-          onQuickWait: (task) => _quickSchedule(task, false),
+          onQuickWait: (task, nextRun) =>
+              _quickSchedule(task, false, currentNextRun: nextRun),
           onBulkQuickRun: () => _bulkQuickSchedule(true),
           onBulkQuickWait: () => _bulkQuickSchedule(false),
           onChangeTab: (tab) => _changeTab(context, tab),
@@ -166,7 +168,11 @@ class ConfigWorkbench extends StatelessWidget {
     controller.openTaskParameters(taskName, source: source);
   }
 
-  Future<void> _quickSchedule(String taskName, bool runNow) async {
+  Future<void> _quickSchedule(
+    String taskName,
+    bool runNow, {
+    String currentNextRun = '',
+  }) async {
     final scriptName = controller.activeScriptName.value.trim();
     if (scriptName.isEmpty) {
       return;
@@ -175,9 +181,13 @@ class ConfigWorkbench extends StatelessWidget {
       scriptName: scriptName,
       taskName: taskName,
       runNow: runNow,
+      currentNextRun: currentNextRun,
     );
     if (ret) {
-      Get.snackbar(I18n.success.tr, taskName.tr);
+      final message = runNow
+          ? taskName.tr
+          : '${taskName.tr} ${I18n.homeQuickWait.tr}';
+      Get.snackbar(I18n.success.tr, message);
     }
   }
 

@@ -7,11 +7,19 @@ const List<String> incomeItemFields = <String>[
   'gold',
   'jade',
   'ap',
+  'auto_point',
+  'honor',
+  'medal',
+  'contrib',
+  'broken_amulet',
+  'mystery_amulet',
   'sca_orochi_scales',
   'sca_reverse_scale',
   'sca_demon_souls',
-  'sca_picture_book',
-  'mystery_amulet',
+  'hyakki_ticket',
+  'daruma',
+  'daruma_shard',
+  'qiyi',
 ];
 
 /// Translation key of every known income field.
@@ -19,11 +27,19 @@ const Map<String, String> _incomeItemLabelKeys = <String, String>{
   'gold': I18n.incomeGold,
   'jade': I18n.incomeJade,
   'ap': I18n.incomeAp,
+  'auto_point': I18n.incomeAutoPoint,
+  'honor': I18n.incomeHonor,
+  'medal': I18n.incomeMedal,
+  'contrib': I18n.incomeContrib,
+  'broken_amulet': I18n.incomeBrokenAmulet,
+  'mystery_amulet': I18n.incomeMysteryAmulet,
   'sca_orochi_scales': I18n.incomeScaOrochiScales,
   'sca_reverse_scale': I18n.incomeScaReverseScale,
   'sca_demon_souls': I18n.incomeScaDemonSouls,
-  'sca_picture_book': I18n.incomeScaPictureBook,
-  'mystery_amulet': I18n.incomeMysteryAmulet,
+  'hyakki_ticket': I18n.incomeHyakkiTicket,
+  'daruma': I18n.incomeDaruma,
+  'daruma_shard': I18n.incomeDarumaShard,
+  'qiyi': I18n.incomeQiyi,
 };
 
 /// Resolves the localized label of one income field.
@@ -48,11 +64,19 @@ const Map<String, String> _incomeItemIcons = <String, String>{
   'gold': 'assets/images/income/gold.png',
   'jade': 'assets/images/income/jade.png',
   'ap': 'assets/images/income/ap.png',
+  'auto_point': 'assets/images/income/auto_point.png',
+  'honor': 'assets/images/income/honor.png',
+  'medal': 'assets/images/income/medal.png',
+  'contrib': 'assets/images/income/contrib.png',
+  'broken_amulet': 'assets/images/income/broken_amulet.png',
+  'mystery_amulet': 'assets/images/income/mystery_amulet.png',
   'sca_orochi_scales': 'assets/images/income/sca_orochi_scales.png',
   'sca_reverse_scale': 'assets/images/income/sca_reverse_scale.png',
   'sca_demon_souls': 'assets/images/income/sca_demon_souls.png',
-  'sca_picture_book': 'assets/images/income/鱼皮.png',
-  'mystery_amulet': 'assets/images/income/mystery_amulet.png',
+  'hyakki_ticket': 'assets/images/income/hyakki_ticket.png',
+  'daruma': 'assets/images/income/daruma.png',
+  'daruma_shard': 'assets/images/income/daruma_shard.png',
+  'qiyi': 'assets/images/income/qiyi.png',
 };
 
 /// Resolves the icon asset path of one income field.
@@ -154,10 +178,10 @@ String formatIncomeCompareDays(int days) {
   switch (days) {
     case 1:
       return I18n.incomeCompare1Day.tr;
-    case 3:
-      return I18n.incomeCompare3Days.tr;
     case 7:
       return I18n.incomeCompare7Days.tr;
+    case 30:
+      return I18n.incomeCompare30Days.tr;
   }
   return '$days';
 }

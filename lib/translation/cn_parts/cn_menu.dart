@@ -18,6 +18,7 @@ final Map<String, String> _cn_menu = {
   I18n.eternitySea: '永生之海',
   I18n.dailyTask: '日常任务',
   I18n.dailyTrifles: '每日琐事',
+  I18n.resourceStats: '资源统计',
   I18n.areaBoss: '地域鬼王',
   I18n.goldYoukai: '金币妖怪',
   I18n.experienceYoukai: '经验妖怪',

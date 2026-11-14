@@ -38,6 +38,7 @@ class TaskStatusRow extends StatelessWidget {
     required this.sourceScriptName,
     required this.task,
     required this.canQuickSchedule,
+    required this.canQuickWait,
     required this.quickScheduleLocked,
     required this.onSetNextRun,
     required this.onQuickRun,
@@ -55,10 +56,13 @@ class TaskStatusRow extends StatelessWidget {
   final String sourceScriptName;
   final TaskStatusViewData task;
   final bool canQuickSchedule;
+
+  /// Whether the wait action stays available, including for the running task.
+  final bool canQuickWait;
   final bool quickScheduleLocked;
   final Future<void> Function(String taskName, String nextRun) onSetNextRun;
   final Future<void> Function(String taskName) onQuickRun;
-  final Future<void> Function(String taskName) onQuickWait;
+  final Future<void> Function(String taskName, String nextRun) onQuickWait;
   final Future<void> Function(String taskName) onEditTask;
   final Future<bool> Function(String taskName) onDisableTask;
   final ValueChanged<String> onDismissed;
@@ -91,8 +95,8 @@ class TaskStatusRow extends StatelessWidget {
               onQuickRun: !quickScheduleLocked && canQuickSchedule
                   ? () => onQuickRun(task.name)
                   : null,
-              onQuickWait: !quickScheduleLocked && canQuickSchedule
-                  ? () => onQuickWait(task.name)
+              onQuickWait: !quickScheduleLocked && canQuickWait
+                  ? () => onQuickWait(task.name, task.timeText)
                   : null,
               onEditTask: () => onEditTask(task.name),
             ),

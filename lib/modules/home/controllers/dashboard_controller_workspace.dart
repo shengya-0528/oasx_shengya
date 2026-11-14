@@ -3,6 +3,24 @@ part of 'dashboard_controller.dart';
 /// Maximum time the UI stays locked for one bulk quick schedule request.
 const _bulkQuickScheduleTimeout = Duration(seconds: 5);
 
+/// One recorded "wait now" click, used to pick the next push offset.
+class QuickWaitClick {
+  /// Records one click that happened at [at].
+  QuickWaitClick(this.count, this.at);
+
+  /// How many clicks happened in the current burst.
+  final int count;
+
+  /// When the last click of the burst happened.
+  final DateTime at;
+}
+
+/// Clicks closer together than this stack on the same burst.
+const _kQuickWaitBurstWindow = Duration(minutes: 10);
+
+/// The first three clicks add one hour each, later ones add three.
+const _kQuickWaitFastClickLimit = 3;
+
 extension HomeDashboardWorkspaceX on HomeDashboardController {
   /// Records the latest resolved workbench layout mode.
   void setWorkbenchLayoutMode(HomeWorkbenchLayoutMode value) {
@@ -356,9 +374,14 @@ extension HomeDashboardWorkspaceX on HomeDashboardController {
     required String scriptName,
     required String taskName,
     required bool runNow,
+    String currentNextRun = '',
   }) async {
     if (!runNow) {
-      return syncTaskNextRun(scriptName: scriptName, taskName: taskName);
+      return pushTaskNextRun(
+        scriptName: scriptName,
+        taskName: taskName,
+        currentNextRun: currentNextRun,
+      );
     }
     final targetDt = formatDateTime(
       DateTime.now().add(const Duration(days: -1)),
@@ -367,6 +390,38 @@ extension HomeDashboardWorkspaceX on HomeDashboardController {
       scriptName: scriptName,
       taskName: taskName,
       nextRun: targetDt,
+    );
+  }
+
+  /// Pushes one task further back by one click worth of time.
+  ///
+  /// The first three clicks of a burst add one hour each, every later click
+  /// adds three hours. A burst ends after ten minutes without a click, so the
+  /// counter restarts when the user comes back to the same task later.
+  Future<bool> pushTaskNextRun({
+    required String scriptName,
+    required String taskName,
+    String currentNextRun = '',
+  }) async {
+    final key = '${scriptName.trim()}\u0000${taskName.trim()}';
+    final now = DateTime.now();
+    quickWaitClicks.removeWhere(
+      (_, click) => now.difference(click.at) > _kQuickWaitBurstWindow,
+    );
+    final previous = quickWaitClicks[key];
+    final count = previous == null ? 1 : previous.count + 1;
+    quickWaitClicks[key] = QuickWaitClick(count, now);
+    final step = count > _kQuickWaitFastClickLimit
+        ? const Duration(hours: 3)
+        : const Duration(hours: 1);
+    final scheduled = DateTime.tryParse(currentNextRun.trim());
+    final base = scheduled != null && scheduled.isAfter(now)
+        ? scheduled
+        : now;
+    return syncTaskNextRun(
+      scriptName: scriptName,
+      taskName: taskName,
+      targetDt: formatDateTime(base.add(step)),
     );
   }
 

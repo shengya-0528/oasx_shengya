@@ -2,12 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:oasx/api/api_client.dart';
 import 'package:oasx/modules/common/models/config_drag_payload.dart';
 import 'package:oasx/modules/home/controllers/dashboard_controller.dart';
 import 'package:oasx/modules/home/models/config_model.dart';
 import 'package:oasx/modules/home/models/home_workbench_layout.dart';
-import 'package:oasx/modules/home/models/script_statistics_models.dart';
 import 'package:oasx/modules/home/widgets/config_collection_task_preview.dart';
 import 'package:oasx/modules/home/widgets/config_state_indicator.dart';
 import 'package:oasx/modules/home/widgets/home_workbench_body.dart';
@@ -91,7 +89,7 @@ class DesktopWorkbench extends StatefulWidget {
   final Future<void> Function(String, HomeTaskParameterEntrySource) onOpenTask;
   final Future<void> Function(String, String) onSetNextRun;
   final Future<void> Function(String) onQuickRun;
-  final Future<void> Function(String) onQuickWait;
+  final Future<void> Function(String, String) onQuickWait;
   final Future<void> Function() onBulkQuickRun;
   final Future<void> Function() onBulkQuickWait;
   final Future<void> Function(HomeWorkbenchTab) onChangeTab;
@@ -177,39 +175,20 @@ class _DesktopWorkbenchState extends State<DesktopWorkbench> {
                     collectionBuilder: (mode) => Obx(() {
                       final script = widget.controller.activeScriptModel;
                       if (script == null) return _empty();
-                      return Column(
-                        children: [
-                          _summary(script),
-                          const SizedBox(height: 12),
-                          Expanded(
-                            child: mode == HomeWorkbenchLayoutMode.threePane
-                                ? _catalog(context, script)
-                                : LogCenterPanel(
-                                    key: const ValueKey('compact-left-logs'),
-                                    scriptName: script.name,
-                                  ),
-                          ),
-                        ],
-                      );
+                      if (mode != HomeWorkbenchLayoutMode.threePane) {
+                        return LogCenterPanel(
+                          key: const ValueKey('compact-left-logs'),
+                          scriptName: script.name,
+                        );
+                      }
+                      return _catalog(context, script);
                     }),
                     detailsBuilder: (mode, expand) => Obx(() {
                       final script = widget.controller.activeScriptModel;
                       if (script == null) return _empty();
-                      final full = mode == HomeWorkbenchLayoutMode.threePane;
-                      return Column(
-                        children: [
-                          SizedBox(
-                            height: 140,
-                            child: _dateCard(script, expand),
-                          ),
-                          const SizedBox(height: 12),
-                          Expanded(
-                            child: full
-                                ? _taskArea(context, script)
-                                : _compactRight(context, script),
-                          ),
-                        ],
-                      );
+                      return mode == HomeWorkbenchLayoutMode.threePane
+                          ? _taskArea(context, script, expand)
+                          : _compactRight(context, script, expand);
                     }),
                     sidebar: Obx(
                       () => WorkbenchSidebarPanel(
@@ -227,37 +206,6 @@ class _DesktopWorkbenchState extends State<DesktopWorkbench> {
       ),
     );
   }
-
-  Widget _dateCard(ScriptModel script, VoidCallback? expand) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(12),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: Padding(
-              padding: EdgeInsets.only(right: expand == null ? 0 : 40),
-              child: TaskDateDistribution(
-                script: script,
-                selectedDate: _selectedDate,
-                onSelected: (value) => setState(() => _selectedDate = value),
-              ),
-            ),
-          ),
-          if (expand != null)
-            Positioned(
-              right: 0,
-              top: 0,
-              child: IconButton(
-                key: const ValueKey('home-workbench-expand-right-sidebar'),
-                tooltip: I18n.homeRestoreSidebar.tr,
-                onPressed: expand,
-                icon: const Icon(Icons.keyboard_double_arrow_left_rounded),
-              ),
-            ),
-        ],
-      ),
-    ),
-  );
 
   Widget _catalog(BuildContext context, ScriptModel script) => Card(
     key: const ValueKey('desktop-task-catalog'),
@@ -277,6 +225,48 @@ class _DesktopWorkbenchState extends State<DesktopWorkbench> {
                 child: Text(
                   '已启用 ${widget.controller.enabledTaskNamesFor(script).length}',
                   style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+              IconButton(
+                tooltip: '脚本联动',
+                onPressed: widget.controller.toggleLinkMode,
+                icon: Icon(
+                  widget.controller.isLinkModeEnabled.value
+                      ? Icons.link
+                      : Icons.link_off,
+                  size: 18,
+                ),
+              ),
+              PopupMenuButton<String>(
+                tooltip: '调整计划',
+                onSelected: (value) {
+                  switch (value) {
+                    case 'rename':
+                      widget.onRenameScript(script.name);
+                      break;
+                    case 'export':
+                      widget.onExportScript(script.name);
+                      break;
+                    case 'delete':
+                      widget.onDeleteScript(script.name);
+                      break;
+                    case 'manage':
+                      _manageScripts();
+                      break;
+                  }
+                },
+                itemBuilder: (_) => const [
+                  PopupMenuItem(value: 'rename', child: Text('重命名')),
+                  PopupMenuItem(value: 'export', child: Text('导出配置')),
+                  PopupMenuItem(value: 'delete', child: Text('删除配置')),
+                  PopupMenuItem(
+                    value: 'manage',
+                    child: Text('调整计划 / 管理脚本'),
+                  ),
+                ],
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  child: Text('调整计划 ▾'),
                 ),
               ),
               IconButton(
@@ -303,7 +293,11 @@ class _DesktopWorkbenchState extends State<DesktopWorkbench> {
     ),
   );
 
-  Widget _taskArea(BuildContext context, ScriptModel script) {
+  Widget _taskArea(
+    BuildContext context,
+    ScriptModel script, [
+    VoidCallback? expand,
+  ]) {
     if (widget.controller.activeTaskName.value.isNotEmpty) {
       return Card(
         child: Padding(
@@ -316,10 +310,14 @@ class _DesktopWorkbenchState extends State<DesktopWorkbench> {
         ),
       );
     }
-    return _tasks(context, script);
+    return _tasks(context, script, expand);
   }
 
-  Widget _tasks(BuildContext context, ScriptModel script) => Card(
+  Widget _tasks(
+    BuildContext context,
+    ScriptModel script, [
+    VoidCallback? expand,
+  ]) => Card(
     key: const ValueKey('desktop-task-schedule'),
     child: Padding(
       padding: const EdgeInsets.all(12),
@@ -352,6 +350,16 @@ class _DesktopWorkbenchState extends State<DesktopWorkbench> {
                     : widget.onBulkQuickWait,
                 icon: const Icon(Icons.schedule_rounded, size: 18),
               ),
+              if (expand != null)
+                IconButton(
+                  key: const ValueKey('home-workbench-expand-right-sidebar'),
+                  tooltip: I18n.homeRestoreSidebar.tr,
+                  onPressed: expand,
+                  icon: const Icon(
+                    Icons.keyboard_double_arrow_left_rounded,
+                    size: 18,
+                  ),
+                ),
             ],
           ),
           Expanded(
@@ -389,8 +397,9 @@ class _DesktopWorkbenchState extends State<DesktopWorkbench> {
 
   Widget _compactRight(
     BuildContext context,
-    ScriptModel script,
-  ) => LayoutBuilder(
+    ScriptModel script, [
+    VoidCallback? expand,
+  ]) => LayoutBuilder(
     builder: (context, constraints) => Obx(() {
       final sideBySide = constraints.maxWidth >= 700;
       final activeTab = widget.controller.activeWorkbenchTab.value;
@@ -402,6 +411,19 @@ class _DesktopWorkbenchState extends State<DesktopWorkbench> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (expand != null)
+            Align(
+              alignment: Alignment.centerRight,
+              child: IconButton(
+                key: const ValueKey('home-workbench-expand-right-sidebar'),
+                tooltip: I18n.homeRestoreSidebar.tr,
+                onPressed: expand,
+                icon: const Icon(
+                  Icons.keyboard_double_arrow_left_rounded,
+                  size: 18,
+                ),
+              ),
+            ),
           Wrap(
             spacing: 6,
             runSpacing: 4,
@@ -473,96 +495,6 @@ class _DesktopWorkbenchState extends State<DesktopWorkbench> {
   Widget _empty() =>
       Card(child: Center(child: Text(I18n.homeNoScriptSelected.tr)));
 
-  Widget _summary(ScriptModel script) {
-    final running = script.state.value == ScriptState.running;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    script.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
-                IconButton(
-                  tooltip: I18n.homeQuickRunAll.tr,
-                  onPressed: widget.controller.isBulkQuickScheduling
-                      ? null
-                      : widget.onBulkQuickRun,
-                  icon: const Icon(Icons.flash_on_rounded, size: 18),
-                ),
-                IconButton(
-                  tooltip: '脚本联动',
-                  onPressed: widget.controller.toggleLinkMode,
-                  icon: Icon(
-                    widget.controller.isLinkModeEnabled.value
-                        ? Icons.link
-                        : Icons.link_off,
-                    size: 18,
-                  ),
-                ),
-                IconButton(
-                  tooltip: (running ? I18n.stop : I18n.run).tr,
-                  iconSize: 18,
-                  onPressed: widget.controller.isDragCopyPendingFor(script.name)
-                      ? null
-                      : () => widget.onTogglePower(script.name, !running),
-                  icon: const Icon(Icons.power_settings_new_rounded),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Expanded(child: ConfigCollectionTaskPreview(script: script)),
-                PopupMenuButton<String>(
-                  tooltip: '配置操作',
-                  onSelected: (value) {
-                    switch (value) {
-                      case 'rename':
-                        widget.onRenameScript(script.name);
-                        break;
-                      case 'export':
-                        widget.onExportScript(script.name);
-                        break;
-                      case 'delete':
-                        widget.onDeleteScript(script.name);
-                        break;
-                      case 'manage':
-                        _manageScripts();
-                        break;
-                    }
-                  },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(value: 'rename', child: Text('重命名')),
-                    PopupMenuItem(value: 'export', child: Text('导出配置')),
-                    PopupMenuItem(value: 'delete', child: Text('删除配置')),
-                    PopupMenuItem(value: 'manage', child: Text('调整计划 / 管理脚本')),
-                  ],
-                  child: const Padding(
-                    padding: EdgeInsets.all(6),
-                    child: Text('调整计划 ▾'),
-                  ),
-                ),
-              ],
-            ),
-            const Divider(height: 12),
-            DesktopSummaryMetrics(
-              key: ValueKey(script.name),
-              scriptName: script.name,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 /// Next-run dates, not speculative future recurring executions.
@@ -680,77 +612,6 @@ class TaskDateDistribution extends StatelessWidget {
       ],
     );
   });
-}
-
-/// Compact real today metrics; failures remain unknown instead of becoming fake zeros.
-class DesktopSummaryMetrics extends StatefulWidget {
-  const DesktopSummaryMetrics({super.key, required this.scriptName});
-  final String scriptName;
-  @override
-  State<DesktopSummaryMetrics> createState() => _DesktopSummaryMetricsState();
-}
-
-class _DesktopSummaryMetricsState extends State<DesktopSummaryMetrics> {
-  ScriptStatisticsDay? _stats;
-  Timer? _timer;
-  bool _loading = false;
-  @override
-  void initState() {
-    super.initState();
-    _refresh();
-    _timer = Timer.periodic(const Duration(seconds: 30), (_) => _refresh());
-  }
-
-  Future<void> _refresh() async {
-    if (_loading) return;
-    _loading = true;
-    try {
-      final date = DateTime.now().toIso8601String().substring(0, 10);
-      final result = await ApiClient().getScriptStatisticsDay(
-        widget.scriptName,
-        date,
-      );
-      if (mounted) setState(() => _stats = result);
-    } catch (_) {
-      if (mounted) setState(() => _stats = null);
-    } finally {
-      _loading = false;
-    }
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final seconds = _stats?.totalRuntimeSeconds.toInt();
-    final values = [
-      seconds == null ? '—' : '${seconds ~/ 3600}h ${seconds % 3600 ~/ 60}m',
-      _stats?.totalTaskRunCount.toString() ?? '—',
-      _stats?.totalBattleCount.toString() ?? '—',
-    ];
-    return Row(
-      children: [
-        for (var i = 0; i < 3; i++)
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  ['今日运行', '任务次数', '战斗场次'][i],
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(height: 3),
-                Text(values[i], style: Theme.of(context).textTheme.titleMedium),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
 }
 
 /// Horizontal tabs keep existing multi-config power, linking and drag-copy actions.

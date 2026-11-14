@@ -183,6 +183,9 @@ class I18n {
       incomeCompare1Day = 'income_compare_1day',
       incomeCompare3Days = 'income_compare_3days',
       incomeCompare7Days = 'income_compare_7days',
+      incomeCompare30Days = 'income_compare_30days',
+      incomeReadUnavailable = 'income_read_unavailable',
+      incomeReadTimeout = 'income_read_timeout',
       incomeBaseline = 'income_baseline',
       incomeGold = 'income_gold',
       incomeJade = 'income_jade',
@@ -192,6 +195,15 @@ class I18n {
       incomeScaDemonSouls = 'income_sca_demon_souls',
       incomeScaPictureBook = 'income_sca_picture_book',
       incomeMysteryAmulet = 'income_mystery_amulet',
+      incomeAutoPoint = 'income_auto_point',
+      incomeHonor = 'income_honor',
+      incomeMedal = 'income_medal',
+      incomeContrib = 'income_contrib',
+      incomeBrokenAmulet = 'income_broken_amulet',
+      incomeHyakkiTicket = 'income_hyakki_ticket',
+      incomeDaruma = 'income_daruma',
+      incomeDarumaShard = 'income_daruma_shard',
+      incomeQiyi = 'income_qiyi',
       homeAnalysisClicks = 'home_analysis_clicks',
       homeAnalysisRandomClicks = 'home_analysis_random_clicks',
       homeAnalysisTasks = 'home_analysis_tasks',
@@ -264,6 +276,9 @@ class I18n {
   static const String homeQuickWait = 'home_quick_wait',
       homeQuickRunAll = 'home_quick_run_all',
       homeQuickWaitAll = 'home_quick_wait_all',
+      homeFavorites = 'home_favorites',
+      homeFavoriteAdd = 'home_favorite_add',
+      homeFavoriteRemove = 'home_favorite_remove',
       homeBulkQuickScheduleTimedOut = 'home_bulk_quick_schedule_timed_out',
       homeOpenTaskParams = 'home_open_task_params',
       homeTaskConfigureAndEnable = 'home_task_configure_and_enable';
@@ -319,7 +334,8 @@ class I18n {
       fallenSun = 'FallenSun';
   static const String eternitySea = 'EternitySea',
       dailyTask = 'Daily Task',
-      dailyTrifles = 'DailyTrifles';
+      dailyTrifles = 'DailyTrifles',
+      resourceStats = 'ResourceStats';
   static const String areaBoss = 'AreaBoss',
       goldYoukai = 'GoldYoukai',
       experienceYoukai = 'ExperienceYoukai';

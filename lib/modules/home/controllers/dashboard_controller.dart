@@ -145,11 +145,18 @@ class HomeDashboardController extends GetxController {
   final _taskParameterEntrySource = Rxn<HomeTaskParameterEntrySource>();
   final _taskAvailabilityCache = <String, bool>{};
 
+  /// Task names pinned to the favorites group of the task catalog.
+  final favoriteTaskNames = <String>[].obs;
+
+  /// Consecutive "wait now" clicks per task, so repeated clicks stack.
+  final quickWaitClicks = <String, QuickWaitClick>{};
+
   ScriptService get _scriptService => Get.find<ScriptService>();
 
   @override
   void onInit() {
     _loadSelection();
+    _loadFavorites();
     _loadWorkbenchCollectionWidth();
     _loadWorkbenchSplitRatio();
     syncWorkspaceState();
@@ -192,6 +199,42 @@ class HomeDashboardController extends GetxController {
       }
       setControlScripts(decoded.map((e) => e.toString()));
     } catch (_) {}
+  }
+
+  /// Loads the persisted favorites list.
+  void _loadFavorites() {
+    final raw = _storage.read(StorageKey.homeFavoriteTaskNames.name);
+    if (raw is! String || raw.isEmpty) {
+      return;
+    }
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) {
+        return;
+      }
+      favoriteTaskNames.assignAll(
+        decoded
+            .map((item) => item.toString().trim())
+            .where((item) => item.isNotEmpty),
+      );
+    } catch (_) {}
+  }
+
+  /// Adds or removes one task from the favorites group and persists it.
+  void toggleFavoriteTask(String taskName) {
+    final name = taskName.trim();
+    if (name.isEmpty) {
+      return;
+    }
+    final next = favoriteTaskNames.toList();
+    if (!next.remove(name)) {
+      next.add(name);
+    }
+    favoriteTaskNames.assignAll(next);
+    _storage.write(
+      StorageKey.homeFavoriteTaskNames.name,
+      jsonEncode(next),
+    );
   }
 
   bool isAllControlScriptsRunning() {

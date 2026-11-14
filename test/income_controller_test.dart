@@ -216,7 +216,8 @@ void main() {
     dashboard.activeScriptName.value = 'oas1';
     await income.syncIncomeBinding();
 
-    income.selectCompareDays(30);
+    // 30 已经是合法选项（月环比），用真正没提供的窗口验证回退
+    income.selectCompareDays(5);
     await Future<void>.delayed(Duration.zero);
 
     expect(income.compareDays.value, 1);
