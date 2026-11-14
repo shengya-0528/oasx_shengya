@@ -214,67 +214,44 @@ class _DesktopWorkbenchState extends State<DesktopWorkbench> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Text(
-                I18n.overview.tr,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '已启用 ${widget.controller.enabledTaskNamesFor(script).length}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ),
-              IconButton(
-                tooltip: '脚本联动',
-                onPressed: widget.controller.toggleLinkMode,
-                icon: Icon(
-                  widget.controller.isLinkModeEnabled.value
-                      ? Icons.link
-                      : Icons.link_off,
-                  size: 18,
-                ),
-              ),
-              PopupMenuButton<String>(
-                tooltip: '调整计划',
-                onSelected: (value) {
-                  switch (value) {
-                    case 'rename':
-                      widget.onRenameScript(script.name);
-                      break;
-                    case 'export':
-                      widget.onExportScript(script.name);
-                      break;
-                    case 'delete':
-                      widget.onDeleteScript(script.name);
-                      break;
-                    case 'manage':
-                      _manageScripts();
-                      break;
-                  }
-                },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'rename', child: Text('重命名')),
-                  PopupMenuItem(value: 'export', child: Text('导出配置')),
-                  PopupMenuItem(value: 'delete', child: Text('删除配置')),
-                  PopupMenuItem(
-                    value: 'manage',
-                    child: Text('调整计划 / 管理脚本'),
+          LayoutBuilder(
+            builder: (context, header) {
+              // Narrow overview panes drop the counter text and the plan label
+              // so the header never overflows the resizable pane width.
+              final compact = header.maxWidth < 320;
+              return Row(
+                children: [
+                  Text(
+                    I18n.overview.tr,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(width: 8),
+                  if (compact)
+                    const Spacer()
+                  else
+                    Expanded(
+                      child: Text(
+                        '已启用 ${widget.controller.enabledTaskNamesFor(script).length}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  _stripIconButton(
+                    tooltip: '脚本联动',
+                    onPressed: widget.controller.toggleLinkMode,
+                    icon: widget.controller.isLinkModeEnabled.value
+                        ? Icons.link
+                        : Icons.link_off,
+                  ),
+                  _adjustPlanMenu(script, compact: compact),
+                  _stripIconButton(
+                    tooltip: '刷新',
+                    onPressed: widget.onRefreshScripts,
+                    icon: Icons.refresh,
                   ),
                 ],
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                  child: Text('调整计划 ▾'),
-                ),
-              ),
-              IconButton(
-                tooltip: '刷新',
-                onPressed: widget.onRefreshScripts,
-                icon: const Icon(Icons.refresh, size: 18),
-              ),
-            ],
+              );
+            },
           ),
           Expanded(
             child: TaskCatalogPanel(
@@ -292,6 +269,57 @@ class _DesktopWorkbenchState extends State<DesktopWorkbench> {
       ),
     ),
   );
+
+  /// Compact header icon button sized for narrow resizable panes.
+  Widget _stripIconButton({
+    required String tooltip,
+    required VoidCallback? onPressed,
+    required IconData icon,
+  }) => IconButton(
+    tooltip: tooltip,
+    onPressed: onPressed,
+    visualDensity: VisualDensity.compact,
+    padding: EdgeInsets.zero,
+    constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+    icon: Icon(icon, size: 18),
+  );
+
+  /// Plan management menu, label on wide panes and icon-only when compact.
+  Widget _adjustPlanMenu(ScriptModel script, {required bool compact}) =>
+      PopupMenuButton<String>(
+        tooltip: '调整计划',
+        onSelected: (value) {
+          switch (value) {
+            case 'rename':
+              widget.onRenameScript(script.name);
+              break;
+            case 'export':
+              widget.onExportScript(script.name);
+              break;
+            case 'delete':
+              widget.onDeleteScript(script.name);
+              break;
+            case 'manage':
+              _manageScripts();
+              break;
+          }
+        },
+        itemBuilder: (_) => const [
+          PopupMenuItem(value: 'rename', child: Text('重命名')),
+          PopupMenuItem(value: 'export', child: Text('导出配置')),
+          PopupMenuItem(value: 'delete', child: Text('删除配置')),
+          PopupMenuItem(value: 'manage', child: Text('调整计划 / 管理脚本')),
+        ],
+        child: compact
+            ? const Padding(
+                padding: EdgeInsets.all(7),
+                child: Icon(Icons.tune_rounded, size: 18),
+              )
+            : const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                child: Text('调整计划 ▾'),
+              ),
+      );
 
   Widget _taskArea(
     BuildContext context,
@@ -333,28 +361,39 @@ class _DesktopWorkbenchState extends State<DesktopWorkbench> {
               const Spacer(),
               if (_selectedDate != null)
                 TextButton(
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    minimumSize: const Size(0, 32),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
                   onPressed: () => setState(() => _selectedDate = null),
                   child: const Text('全部日期'),
                 ),
-              IconButton(
+              _stripIconButton(
                 tooltip: I18n.homeQuickRunAll.tr,
                 onPressed: widget.controller.isBulkQuickScheduling
                     ? null
                     : widget.onBulkQuickRun,
-                icon: const Icon(Icons.flash_on_rounded, size: 18),
+                icon: Icons.flash_on_rounded,
               ),
-              IconButton(
+              _stripIconButton(
                 tooltip: I18n.homeQuickWaitAll.tr,
                 onPressed: widget.controller.isBulkQuickScheduling
                     ? null
                     : widget.onBulkQuickWait,
-                icon: const Icon(Icons.schedule_rounded, size: 18),
+                icon: Icons.schedule_rounded,
               ),
               if (expand != null)
                 IconButton(
                   key: const ValueKey('home-workbench-expand-right-sidebar'),
                   tooltip: I18n.homeRestoreSidebar.tr,
                   onPressed: expand,
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 32,
+                    height: 32,
+                  ),
                   icon: const Icon(
                     Icons.keyboard_double_arrow_left_rounded,
                     size: 18,

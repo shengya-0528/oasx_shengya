@@ -189,7 +189,7 @@ class _HomeWorkbenchBodyState extends State<HomeWorkbenchBody> {
     final currentCollectionWidth = widget.balancedColumns
         ? desiredCollectionWidth
               .clamp(
-                300.0,
+                kHomeWorkbenchBalancedMinCollectionWidth,
                 maxWidth -
                     kHomeWorkbenchMinDetailsWidth -
                     kHomeWorkbenchDividerWidth,

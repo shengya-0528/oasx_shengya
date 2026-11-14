@@ -14,13 +14,17 @@ const double kHomeWorkbenchDividerWidth = 16;
 const double kHomeWorkbenchDefaultCollectionWidth = 340;
 
 /// Minimum width for the script list pane on desktop layouts.
-const double kHomeWorkbenchMinCollectionWidth = 170;
+const double kHomeWorkbenchMinCollectionWidth = 140;
 
 /// Maximum stored width for the script list pane on desktop layouts.
 const double kHomeWorkbenchMaxCollectionWidth = 520;
 
+/// Minimum width for the script list pane when the desktop workbench
+/// balances its three columns (the overview pane keeps icon-only actions).
+const double kHomeWorkbenchBalancedMinCollectionWidth = 200;
+
 /// Minimum width for the active workbench pane.
-const double kHomeWorkbenchMinDetailsWidth = 360;
+const double kHomeWorkbenchMinDetailsWidth = 260;
 
 /// Minimum width for the log pane.
 const double kHomeWorkbenchMinLogWidth = 360;
