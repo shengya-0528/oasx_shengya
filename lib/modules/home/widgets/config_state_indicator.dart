@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:oasx/config/theme.dart';
 import 'package:oasx/modules/home/controllers/dashboard_controller.dart';
 
 class ConfigStateIndicator extends StatelessWidget {
@@ -42,7 +43,7 @@ class ConfigStateIndicator extends StatelessWidget {
           icon: Icons.circle_rounded,
         ),
       HomeScriptStateFilter.abnormal => const _StatePalette(
-          color: Colors.orange,
+          color: scriptErrorColor,
           icon: Icons.circle_rounded,
         ),
       HomeScriptStateFilter.stopped => const _StatePalette(

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:oasx/config/theme.dart';
 import 'package:oasx/modules/common/models/config_drag_payload.dart';
 import 'package:oasx/modules/home/controllers/dashboard_controller.dart';
 import 'package:oasx/modules/home/models/config_model.dart';
@@ -758,15 +759,18 @@ class _DesktopScriptStripState extends State<DesktopScriptStrip> {
                         );
                       },
                       builder: (context, candidates, _) => Material(
-                        color: active || candidates.isNotEmpty
+                        color: active
+                            ? scriptTabActiveBorderColor.withValues(alpha: .12)
+                            : candidates.isNotEmpty
                             ? colors.primaryContainer
                             : colors.surfaceContainerLow,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                           side: BorderSide(
                             color: active
-                                ? colors.primary.withValues(alpha: .4)
+                                ? scriptTabActiveBorderColor
                                 : colors.outlineVariant,
+                            width: active ? 2 : 1,
                           ),
                         ),
                         child: InkWell(
@@ -790,7 +794,7 @@ class _DesktopScriptStripState extends State<DesktopScriptStrip> {
                                   state: widget.controller.scriptStateFor(
                                     script,
                                   ),
-                                  size: 10,
+                                  size: 16,
                                 ),
                                 const SizedBox(width: 8),
                                 SizedBox(

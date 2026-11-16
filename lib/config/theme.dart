@@ -56,6 +56,12 @@ const Map<String, Color> colorSeedMap = {
   'Pink': Colors.pink
 };
 
+/// 主页脚本切换卡片的选中框色（设计指定 #5C93ED，选中时加粗到 2px）。
+const Color scriptTabActiveBorderColor = Color(0xFF5C93ED);
+
+/// 主页状态圆点的出错色（设计指定 #FE0356）。
+const Color scriptErrorColor = Color(0xFFFE0356);
+
 ThemeData lightTheme = ThemeData(
   colorSchemeSeed: ColorSeed.baseColor.color,
   useMaterial3: true,
