@@ -90,7 +90,7 @@ class TaskStatusRow extends StatelessWidget {
           child: SplitScrollRow(
             minHeight: compact ? 36 : 40,
             trailingExtent: _actionExtent,
-            trailingBackgroundColor: rowBackground,
+            trailingBackgroundColor: Colors.transparent,
             trailing: _TaskActionBar(
               onQuickRun: !quickScheduleLocked && canQuickSchedule
                   ? () => onQuickRun(task.name)

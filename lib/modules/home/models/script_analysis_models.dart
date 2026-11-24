@@ -76,10 +76,19 @@ ScriptAnalysisSnapshot parseScriptAnalysis(
     r'^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})',
   );
   final compactTimestamp = RegExp(r'^(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})');
+  final levelTimestamp = RegExp(
+    r'^(?:[A-Z]+)?\s*\|\s*(\d{2}:\d{2}:\d{2}\.\d{3})\s*\|',
+  );
   final taskContext = LogTaskContext();
   final clickPattern = RegExp(r'Click\s+\(\s*(\d+),\s*(\d+)\)\s+@\s+(.+?)\s*$');
+  final localizedClickPattern = RegExp(
+    r'点击\s*\(\s*(\d+),\s*(\d+)\)\s*@\s*(.+?)\s*$',
+  );
   final swipePattern = RegExp(
     r'Swipe\s+\(\s*(\d+),\s*(\d+)\)\s*->\s*\(\s*(\d+),\s*(\d+)\)',
+  );
+  final localizedSwipePattern = RegExp(
+    r'滑动\s*\(\s*(\d+),\s*(\d+)\)\s*(?:->|→)\s*\(\s*(\d+),\s*(\d+)\)',
   );
   final events = <ScriptActionEvent>[];
   for (final line in lines) {
@@ -95,16 +104,20 @@ ScriptAnalysisSnapshot parseScriptAnalysis(
     if (fileDate != dateKey) continue;
     final fullTimeMatch = fullTimestamp.firstMatch(line.text);
     final compactTimeMatch = compactTimestamp.firstMatch(line.text);
-    final timestampText =
-        fullTimeMatch?.group(1) ??
-        (compactTimeMatch == null
-            ? null
-            : '${dateKey.substring(0, 4)}-${compactTimeMatch.group(1)}');
+    final levelTimeMatch = levelTimestamp.firstMatch(line.text);
+    String? timestampText = fullTimeMatch?.group(1);
+    if (timestampText == null && compactTimeMatch != null) {
+      timestampText = '${dateKey.substring(0, 4)}-${compactTimeMatch.group(1)}';
+    }
+    if (timestampText == null && levelTimeMatch != null) {
+      timestampText = '$dateKey ${levelTimeMatch.group(1)}';
+    }
     final time = timestampText == null
         ? null
         : DateTime.tryParse(timestampText.replaceFirst(' ', 'T'));
     if (time == null) continue;
-    final click = clickPattern.firstMatch(line.text);
+    final click = clickPattern.firstMatch(line.text) ??
+        localizedClickPattern.firstMatch(line.text);
     if (click != null) {
       events.add(
         ScriptActionEvent(
@@ -120,7 +133,8 @@ ScriptAnalysisSnapshot parseScriptAnalysis(
       );
       continue;
     }
-    final swipe = swipePattern.firstMatch(line.text);
+    final swipe = swipePattern.firstMatch(line.text) ??
+        localizedSwipePattern.firstMatch(line.text);
     if (swipe != null) {
       events.add(
         ScriptActionEvent(

@@ -42,7 +42,7 @@ class _TaskMeta extends StatelessWidget {
                 value: task.timeText,
                 displayText: date == null
                     ? task.timeText
-                    : '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}',
+                    : buildTaskNextRunLabel(task.timeText),
                 notHoverStyle: Theme.of(context).textTheme.bodySmall,
                 onChange: (value) => unawaited(onSetNextRun(task.name, value)),
               ),
@@ -71,7 +71,8 @@ class _TaskMeta extends StatelessWidget {
                 feedback: DragCopyFeedback(label: payload.displayLabel),
                 onDragStarted: () => controller.startConfigDrag(payload),
                 onDragCompleted: controller.clearConfigDrag,
-                onDraggableCanceled: (_, __) => controller.clearConfigDrag(),
+                onDraggableCanceled: (_, __) =>
+                    controller.clearConfigDrag(),
                 onDragEnd: (_) => controller.clearConfigDrag(),
                 child: title,
               )
@@ -80,6 +81,7 @@ class _TaskMeta extends StatelessWidget {
           const SizedBox(height: 2),
           DateTimePicker(
             value: task.timeText,
+            displayText: buildTaskNextRunLabel(task.timeText),
             notHoverStyle: Theme.of(context).textTheme.labelMedium,
             hoverStyle: Theme.of(context).textTheme.labelMedium?.copyWith(
               color: Theme.of(context).colorScheme.primary,
@@ -90,6 +92,26 @@ class _TaskMeta extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Formats a next-run timestamp as a clock time, replacing the clock with a
+/// day offset when the task is scheduled for a later day (for example `2天后`).
+String buildTaskNextRunLabel(String timeText) {
+  final date = DateTime.tryParse(timeText);
+  if (date == null) {
+    return timeText;
+  }
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final scheduledDay = DateTime(date.year, date.month, date.day);
+  final offset = scheduledDay.difference(today).inDays;
+  final clock =
+      '${date.hour.toString().padLeft(2, '0')}:'
+      '${date.minute.toString().padLeft(2, '0')}';
+  if (offset <= 0) {
+    return clock;
+  }
+  return '$offset天后';
 }
 
 class _TaskTypeIcon extends StatelessWidget {

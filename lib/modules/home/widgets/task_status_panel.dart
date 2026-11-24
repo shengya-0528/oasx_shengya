@@ -16,7 +16,6 @@ class TaskStatusPanel extends StatefulWidget {
     required this.onQuickRun,
     required this.onQuickWait,
     required this.onEditTask,
-    this.scheduledDate,
     this.compact = false,
   });
 
@@ -27,7 +26,6 @@ class TaskStatusPanel extends StatefulWidget {
   final Future<void> Function(String taskName) onQuickRun;
   final Future<void> Function(String taskName, String nextRun) onQuickWait;
   final Future<void> Function(String taskName) onEditTask;
-  final DateTime? scheduledDate;
   final bool compact;
 
   @override
@@ -35,10 +33,8 @@ class TaskStatusPanel extends StatefulWidget {
 }
 
 class _TaskStatusPanelState extends State<TaskStatusPanel> {
-  final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final Set<String> _hiddenTaskIds = <String>{};
-  String _searchQuery = '';
 
   @override
   void didUpdateWidget(covariant TaskStatusPanel oldWidget) {
@@ -46,13 +42,12 @@ class _TaskStatusPanelState extends State<TaskStatusPanel> {
     if (oldWidget.scriptModel.name == widget.scriptModel.name) {
       return;
     }
-    _clearSearchState();
+    _clearLocalState();
     _scrollTaskListToTop();
   }
 
   @override
   void dispose() {
-    _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -66,24 +61,12 @@ class _TaskStatusPanelState extends State<TaskStatusPanel> {
       _pruneHiddenTaskIds(rawTasks);
       final visibleTasks = rawTasks
           .where((task) => !_hiddenTaskIds.contains(task.rowId))
-          .where(_matchesTaskQuery)
-          .where((task) {
-            final date = widget.scheduledDate;
-            if (date == null) return true;
-            final next = DateTime.tryParse(task.timeText);
-            final day = next ?? DateTime.now();
-            return day.year == date.year &&
-                day.month == date.month &&
-                day.day == date.day;
-          })
           .toList();
       return Column(
         children: [
-          _buildSearchField(),
-          const SizedBox(height: 12),
           Expanded(
             child: visibleTasks.isEmpty
-                ? Center(child: Text(_emptyMessage))
+                ? Center(child: Text(I18n.homeNoTask.tr))
                 : ListView.separated(
                     key: const PageStorageKey<String>('home-task-status-list'),
                     controller: _scrollController,
@@ -124,33 +107,16 @@ class _TaskStatusPanelState extends State<TaskStatusPanel> {
     });
   }
 
-  /// Builds the local overview search field above the task list.
-  Widget _buildSearchField() {
-    return TextField(
-      controller: _searchController,
-      decoration: InputDecoration(
-        isDense: true,
-        prefixIcon: const Icon(Icons.search_rounded),
-        hintText: I18n.taskSearchHint.tr,
-        border: const OutlineInputBorder(),
-      ),
-      onChanged: (value) => setState(() {
-        _searchQuery = value.trim().toLowerCase();
-      }),
-    );
-  }
-
-  /// Returns the placeholder message for the current filtered view.
-  String get _emptyMessage {
-    return _searchQuery.isEmpty ? I18n.homeNoTask.tr : I18n.taskNotFound.tr;
-  }
-
   /// Collects the current overview task snapshot from the active script model.
+  ///
+  /// Every pending and waiting task the backend reports is kept, including the
+  /// ones scheduled for tomorrow or later; they are merged into a single time
+  /// ordered queue so the whole upcoming plan stays visible.
   List<TaskStatusViewData> _collectTasks(ScriptModel model) {
-    final tasks = <TaskStatusViewData>[];
+    final running = <TaskStatusViewData>[];
     final runningName = model.runningTask.value.taskName.value.trim();
     if (runningName.isNotEmpty) {
-      tasks.add(
+      running.add(
         TaskStatusViewData(
           rowId: 'running::$runningName',
           name: runningName,
@@ -158,47 +124,41 @@ class _TaskStatusPanelState extends State<TaskStatusPanel> {
         ),
       );
     }
-    for (final entry in model.pendingTaskList.indexed) {
-      final name = entry.$2.taskName.value.trim();
-      if (name.isEmpty) {
-        continue;
+    final queued = <TaskStatusViewData>[
+      for (final entry in model.pendingTaskList.indexed)
+        if (entry.$2.taskName.value.trim().isNotEmpty)
+          TaskStatusViewData(
+            rowId: 'pending::${entry.$1}::${entry.$2.taskName.value.trim()}::'
+                '${entry.$2.nextRun.value.trim()}',
+            name: entry.$2.taskName.value.trim(),
+            type: TaskStatusType.pending,
+            timeText: entry.$2.nextRun.value.trim(),
+          ),
+      for (final entry in model.waitingTaskList.indexed)
+        if (entry.$2.taskName.value.trim().isNotEmpty)
+          TaskStatusViewData(
+            rowId: 'waiting::${entry.$1}::${entry.$2.taskName.value.trim()}::'
+                '${entry.$2.nextRun.value.trim()}',
+            name: entry.$2.taskName.value.trim(),
+            type: TaskStatusType.waiting,
+            timeText: entry.$2.nextRun.value.trim(),
+          ),
+    ];
+    queued.sort((a, b) {
+      final left = DateTime.tryParse(a.timeText);
+      final right = DateTime.tryParse(b.timeText);
+      if (left == null && right == null) {
+        return a.name.compareTo(b.name);
       }
-      final timeText = entry.$2.nextRun.value.trim();
-      tasks.add(
-        TaskStatusViewData(
-          rowId: 'pending::${entry.$1}::$name::$timeText',
-          name: name,
-          type: TaskStatusType.pending,
-          timeText: timeText,
-        ),
-      );
-    }
-    for (final entry in model.waitingTaskList.indexed) {
-      final name = entry.$2.taskName.value.trim();
-      if (name.isEmpty) {
-        continue;
+      if (left == null) {
+        return 1;
       }
-      final timeText = entry.$2.nextRun.value.trim();
-      tasks.add(
-        TaskStatusViewData(
-          rowId: 'waiting::${entry.$1}::$name::$timeText',
-          name: name,
-          type: TaskStatusType.waiting,
-          timeText: timeText,
-        ),
-      );
-    }
-    return tasks;
-  }
-
-  /// Returns whether one overview task matches the local search query.
-  bool _matchesTaskQuery(TaskStatusViewData task) {
-    if (_searchQuery.isEmpty) {
-      return true;
-    }
-    final localized = task.name.tr.toLowerCase();
-    final original = task.name.toLowerCase();
-    return localized.contains(_searchQuery) || original.contains(_searchQuery);
+      if (right == null) {
+        return -1;
+      }
+      return left.compareTo(right);
+    });
+    return [...running, ...queued];
   }
 
   /// Requests disabling one overview task across the current linker scope.
@@ -223,11 +183,9 @@ class _TaskStatusPanelState extends State<TaskStatusPanel> {
     });
   }
 
-  /// Clears local search and hidden-row state when the active config changes.
-  void _clearSearchState() {
+  /// Clears local hidden-row state when the active config changes.
+  void _clearLocalState() {
     _hiddenTaskIds.clear();
-    _searchController.clear();
-    _searchQuery = '';
   }
 
   void _scrollTaskListToTop() {

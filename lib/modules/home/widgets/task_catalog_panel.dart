@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:oasx/api/api_client.dart';
@@ -20,6 +22,7 @@ class TaskCatalogPanel extends StatefulWidget {
     required this.onQuickWait,
     this.gridLayout = false,
     this.inlineParameters = true,
+    this.showFilterButton = true,
   });
 
   final HomeDashboardController controller;
@@ -30,24 +33,79 @@ class TaskCatalogPanel extends StatefulWidget {
   final bool gridLayout;
   final bool inlineParameters;
 
+  /// Whether the panel renders its own filter button row.
+  ///
+  /// Set to false when the host pane already shows
+  /// [TaskCatalogFilterButton] in its header.
+  final bool showFilterButton;
+
   @override
   State<TaskCatalogPanel> createState() => _TaskCatalogPanelState();
 }
 
 class _TaskCatalogPanelState extends State<TaskCatalogPanel> {
   late final Future<Map<String, List<String>>> _menuFuture;
-  final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final Set<String> _expandedGroups = <String>{};
   final Map<String, bool> _enabledOverrides = <String, bool>{};
   final Set<String> _togglingTasks = <String>{};
-  String _searchQuery = '';
-  HomeTaskCatalogFilter _filter = HomeTaskCatalogFilter.all;
+  final Map<String, int> _todayRunCounts = <String, int>{};
+  Timer? _runCountTimer;
 
   @override
   void initState() {
     super.initState();
     _menuFuture = ApiClient().getScriptMenu();
+    unawaited(_refreshTodayRunCounts());
+    _runCountTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => unawaited(_refreshTodayRunCounts()),
+    );
+  }
+
+  /// Refreshes today's per-task run counters used by the catalog badges.
+  Future<void> _refreshTodayRunCounts() async {
+    final now = DateTime.now();
+    final dateKey =
+        '${now.year.toString().padLeft(4, '0')}-'
+        '${now.month.toString().padLeft(2, '0')}-'
+        '${now.day.toString().padLeft(2, '0')}';
+    try {
+      final day = await ApiClient().getScriptStatisticsDay(
+        widget.scriptModel.name,
+        dateKey,
+      );
+      if (!mounted) {
+        return;
+      }
+      final counts = <String, int>{};
+      for (final entry in day.tasks.entries) {
+        if (entry.value.runCount > 0) {
+          counts[_countKey(entry.key)] = entry.value.runCount;
+        }
+      }
+      setState(() {
+        _todayRunCounts
+          ..clear()
+          ..addAll(counts);
+      });
+    } catch (_) {
+      // Keep the previous counters when the statistics endpoint is busy.
+    }
+  }
+
+  static String _countKey(String raw) =>
+      raw.toLowerCase().replaceAll(RegExp(r'[\s_\-()（）·]'), '');
+
+  int _runCountFor(String taskName) {
+    if (_todayRunCounts.isEmpty) {
+      return 0;
+    }
+    final direct = _todayRunCounts[_countKey(taskName)];
+    if (direct != null) {
+      return direct;
+    }
+    return _todayRunCounts[_countKey(taskName.tr)] ?? 0;
   }
 
   @override
@@ -62,7 +120,7 @@ class _TaskCatalogPanelState extends State<TaskCatalogPanel> {
 
   @override
   void dispose() {
-    _searchController.dispose();
+    _runCountTimer?.cancel();
     _scrollController.dispose();
     super.dispose();
   }
@@ -95,10 +153,14 @@ class _TaskCatalogPanelState extends State<TaskCatalogPanel> {
     ConfigDragPayload? dragPayload,
     bool quickScheduleLocked,
   ) {
+    final filter = widget.controller.taskCatalogFilter.value;
     return Column(
       children: [
-        _buildToolbar(),
-        const SizedBox(height: 12),
+        if (widget.showFilterButton) ...[
+          _buildFilterBar(context),
+          const SizedBox(height: 12),
+        ] else
+          const SizedBox(height: 2),
         Expanded(
           child: FutureBuilder<Map<String, List<String>>>(
             future: _menuFuture,
@@ -118,6 +180,7 @@ class _TaskCatalogPanelState extends State<TaskCatalogPanel> {
               final sections = _sections(
                 snapshot.data ?? const <String, List<String>>{},
                 enabledTaskNames,
+                filter,
               );
               if (sections.isEmpty) {
                 return Center(child: Text(I18n.taskNotFound.tr));
@@ -143,7 +206,7 @@ class _TaskCatalogPanelState extends State<TaskCatalogPanel> {
                   expanded:
                       sections[index].groupName == I18n.homeFavorites ||
                       _expandedGroups.contains(sections[index].groupName),
-                  forceExpanded: _searchQuery.isNotEmpty,
+                  forceExpanded: false,
                   togglingTasks: _togglingTasks,
                   onToggleExpanded: () =>
                       _handleGroupToggle(sections[index].groupName),
@@ -158,6 +221,7 @@ class _TaskCatalogPanelState extends State<TaskCatalogPanel> {
                   dragEnabled: widget.controller.canUseDesktopDragCopy,
                   activeDragPayload: dragPayload,
                   gridLayout: widget.gridLayout,
+                  runCountFor: _runCountFor,
                 ),
               );
             },
@@ -167,44 +231,11 @@ class _TaskCatalogPanelState extends State<TaskCatalogPanel> {
     );
   }
 
-  Widget _buildToolbar() {
-    final searchField = TextField(
-      controller: _searchController,
-      decoration: InputDecoration(
-        isDense: true,
-        prefixIcon: const Icon(Icons.search_rounded),
-        hintText: I18n.taskSearchHint.tr,
-        border: const OutlineInputBorder(),
-      ),
-      onChanged: (value) => setState(() {
-        _searchQuery = value.trim().toLowerCase();
-      }),
-    );
+  Widget _buildFilterBar(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: searchField),
-        const SizedBox(width: 10),
-        PopupMenuButton<HomeTaskCatalogFilter>(
-          tooltip: _filterLabel(_filter),
-          initialValue: _filter,
-          onSelected: (value) => setState(() {
-            _filter = value;
-          }),
-          itemBuilder: (context) => HomeTaskCatalogFilter.values
-              .map(
-                (value) => PopupMenuItem<HomeTaskCatalogFilter>(
-                  value: value,
-                  child: Text(_filterLabel(value)),
-                ),
-              )
-              .toList(),
-          icon: Icon(
-            Icons.filter_list_rounded,
-            color: _filter == HomeTaskCatalogFilter.all
-                ? null
-                : Theme.of(context).colorScheme.primary,
-          ),
-        ),
+        const Spacer(),
+        TaskCatalogFilterButton(controller: widget.controller),
       ],
     );
   }
@@ -212,6 +243,7 @@ class _TaskCatalogPanelState extends State<TaskCatalogPanel> {
   List<_CatalogSectionData> _sections(
     Map<String, List<String>> menu,
     Set<String> enabledTaskNames,
+    HomeTaskCatalogFilter filter,
   ) {
     final sections = <_CatalogSectionData>[];
     for (final entry in menu.entries) {
@@ -225,7 +257,7 @@ class _TaskCatalogPanelState extends State<TaskCatalogPanel> {
         allTaskNames.add(taskName);
         final enabled =
             _enabledOverrides[taskName] ?? enabledTaskNames.contains(taskName);
-        if (!_matchesFilter(taskName, enabled)) {
+        if (!_matchesFilter(taskName, enabled, filter)) {
           continue;
         }
         tasks.add(
@@ -272,28 +304,15 @@ class _TaskCatalogPanelState extends State<TaskCatalogPanel> {
     return sections;
   }
 
-  bool _matchesFilter(String taskName, bool enabled) {
-    final visible = switch (_filter) {
+  bool _matchesFilter(
+    String taskName,
+    bool enabled,
+    HomeTaskCatalogFilter filter,
+  ) {
+    return switch (filter) {
       HomeTaskCatalogFilter.all => true,
       HomeTaskCatalogFilter.enabled => enabled,
       HomeTaskCatalogFilter.disabled => !enabled,
-    };
-    if (!visible) {
-      return false;
-    }
-    if (_searchQuery.isEmpty) {
-      return true;
-    }
-    final localized = taskName.tr.toLowerCase();
-    final original = taskName.toLowerCase();
-    return localized.contains(_searchQuery) || original.contains(_searchQuery);
-  }
-
-  String _filterLabel(HomeTaskCatalogFilter value) {
-    return switch (value) {
-      HomeTaskCatalogFilter.all => I18n.homeTaskFilterAll.tr,
-      HomeTaskCatalogFilter.enabled => I18n.homeTaskFilterEnabled.tr,
-      HomeTaskCatalogFilter.disabled => I18n.homeTaskFilterDisabled.tr,
     };
   }
 
@@ -449,6 +468,7 @@ class _CatalogTaskRow extends StatelessWidget {
     required this.dragEnabled,
     required this.activeDragPayload,
     this.compact = false,
+    this.runCount = 0,
   });
 
   final HomeDashboardController controller;
@@ -464,6 +484,7 @@ class _CatalogTaskRow extends StatelessWidget {
   final bool dragEnabled;
   final ConfigDragPayload? activeDragPayload;
   final bool compact;
+  final int runCount;
   static const _actionExtent = 172.0;
   static const _minRowHeight = 40.0;
 
@@ -471,9 +492,6 @@ class _CatalogTaskRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDraggingTask =
         activeDragPayload?.matchesTask(sourceScriptName, task.name) ?? false;
-    final rowBackground = Theme.of(
-      context,
-    ).colorScheme.secondaryContainer.withValues(alpha: 0.18);
     final dragColor = Theme.of(
       context,
     ).colorScheme.primaryContainer.withValues(alpha: 0.42);
@@ -533,6 +551,8 @@ class _CatalogTaskRow extends StatelessWidget {
                         )
                       : label,
                 ),
+                if (runCount > 0)
+                  _TaskRunCountBadge(count: runCount, compact: true),
                 IconButton(
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints.tightFor(
@@ -596,7 +616,7 @@ class _CatalogTaskRow extends StatelessWidget {
           scrollKey: PageStorageKey<String>('task-row-scroll-${task.name}'),
           minHeight: _minRowHeight,
           trailingExtent: _actionExtent,
-          trailingBackgroundColor: rowBackground,
+          trailingBackgroundColor: Colors.transparent,
           trailing: _TaskIconBar(
             task: task,
             onOpenTask: onOpenTask,
@@ -607,6 +627,7 @@ class _CatalogTaskRow extends StatelessWidget {
             isFavorite: isFavorite,
             onToggleFavorite: () =>
                 controller.toggleFavoriteTask(task.name),
+            runCount: runCount,
           ),
           leading: Row(
             mainAxisSize: MainAxisSize.min,
@@ -696,6 +717,7 @@ class _CatalogSectionCard extends StatelessWidget {
     required this.quickScheduleLocked,
     required this.dragEnabled,
     required this.activeDragPayload,
+    required this.runCountFor,
     this.gridLayout = false,
   });
 
@@ -715,6 +737,7 @@ class _CatalogSectionCard extends StatelessWidget {
   final bool quickScheduleLocked;
   final bool dragEnabled;
   final ConfigDragPayload? activeDragPayload;
+  final int Function(String taskName) runCountFor;
   final bool gridLayout;
 
   Widget _gridTask(int index) {
@@ -733,6 +756,7 @@ class _CatalogSectionCard extends StatelessWidget {
       dragEnabled: dragEnabled,
       activeDragPayload: activeDragPayload,
       compact: true,
+      runCount: runCountFor(task.name),
     );
   }
 
@@ -834,6 +858,7 @@ class _CatalogSectionCard extends StatelessWidget {
                             quickScheduleLocked: quickScheduleLocked,
                             dragEnabled: dragEnabled,
                             activeDragPayload: activeDragPayload,
+                            runCount: runCountFor(section.tasks[index].name),
                           ),
                         ],
                       ],
@@ -856,6 +881,7 @@ class _TaskIconBar extends StatelessWidget {
     required this.quickScheduleLocked,
     required this.isFavorite,
     required this.onToggleFavorite,
+    this.runCount = 0,
   });
 
   final _CatalogTaskData task;
@@ -866,6 +892,7 @@ class _TaskIconBar extends StatelessWidget {
   final bool quickScheduleLocked;
   final bool isFavorite;
   final VoidCallback onToggleFavorite;
+  final int runCount;
 
   @override
   Widget build(BuildContext context) {
@@ -874,6 +901,8 @@ class _TaskIconBar extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (!isScriptGroup)
+          _TaskRunCountBadge(count: runCount, reserveSpace: true),
         _IconOnlyButton(
           icon: isFavorite
               ? Icons.favorite_rounded
@@ -956,4 +985,108 @@ class _CatalogTaskData {
   final String name;
   final String groupName;
   bool enabled;
+}
+
+/// Localized label for one catalog filter option.
+String taskCatalogFilterLabel(HomeTaskCatalogFilter value) {
+  return switch (value) {
+    HomeTaskCatalogFilter.all => I18n.homeTaskFilterAll.tr,
+    HomeTaskCatalogFilter.enabled => I18n.homeTaskFilterEnabled.tr,
+    HomeTaskCatalogFilter.disabled => I18n.homeTaskFilterDisabled.tr,
+  };
+}
+
+/// Shared catalog filter popup, reusable from a pane header.
+class TaskCatalogFilterButton extends StatelessWidget {
+  const TaskCatalogFilterButton({
+    super.key,
+    required this.controller,
+    this.iconSize,
+  });
+
+  final HomeDashboardController controller;
+  final double? iconSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final filter = controller.taskCatalogFilter.value;
+      return PopupMenuButton<HomeTaskCatalogFilter>(
+        tooltip: taskCatalogFilterLabel(filter),
+        initialValue: filter,
+        onSelected: controller.setTaskCatalogFilterValue,
+        itemBuilder: (context) => HomeTaskCatalogFilter.values
+            .map(
+              (value) => PopupMenuItem<HomeTaskCatalogFilter>(
+                value: value,
+                child: Text(taskCatalogFilterLabel(value)),
+              ),
+            )
+            .toList(),
+        icon: Icon(
+          Icons.filter_list_rounded,
+          size: iconSize,
+          color: filter == HomeTaskCatalogFilter.all
+              ? null
+              : Theme.of(context).colorScheme.primary,
+        ),
+      );
+    });
+  }
+}
+
+/// Green badge showing how many times a task already ran today.
+///
+/// The width is reserved for three digits so the row layout never shifts
+/// while the counter grows (cap 999).
+class _TaskRunCountBadge extends StatelessWidget {
+  const _TaskRunCountBadge({
+    required this.count,
+    this.compact = false,
+    this.reserveSpace = false,
+  });
+
+  final int count;
+  final bool compact;
+
+  /// Reserves the three-digit slot even when nothing ran yet.
+  final bool reserveSpace;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = count > 999 ? 999 : count;
+    final show = value > 0;
+    if (!show && !reserveSpace) {
+      return const SizedBox.shrink();
+    }
+    final baseStyle = compact
+        ? Theme.of(context).textTheme.bodyMedium
+        : Theme.of(context).textTheme.bodyLarge;
+    final style = baseStyle?.copyWith(
+      color: const Color(0xFF43A047),
+      fontWeight: FontWeight.w600,
+      height: 1.1,
+    );
+    return Padding(
+      padding: EdgeInsets.only(left: compact ? 4 : 8, right: 2),
+      child: Stack(
+        alignment: Alignment.centerRight,
+        children: [
+          Text(
+            '999',
+            style: style?.copyWith(color: Colors.transparent),
+            maxLines: 1,
+            textAlign: TextAlign.right,
+          ),
+          if (show)
+            Text(
+              '$value',
+              style: style,
+              maxLines: 1,
+              textAlign: TextAlign.right,
+            ),
+        ],
+      ),
+    );
+  }
 }

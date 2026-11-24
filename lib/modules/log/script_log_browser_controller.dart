@@ -70,7 +70,10 @@ class ScriptLogBrowserController extends GetxController {
   final autoScroll = true.obs;
 
   /// Whether long log lines should wrap in the viewport.
-  final wrapLines = true.obs;
+  ///
+  /// Wrapping stays off by default so long log lines keep horizontal
+  /// scrolling; the toolbar toggle switches it on per session.
+  final wrapLines = false.obs;
 
   /// Error log list items.
   final errorItems = <ScriptErrorLogItem>[].obs;

@@ -99,7 +99,6 @@ class DesktopWorkbench extends StatefulWidget {
 }
 
 class _DesktopWorkbenchState extends State<DesktopWorkbench> {
-  DateTime? _selectedDate;
   bool _showCatalog = false;
   Timer? _clock;
   @override
@@ -158,7 +157,6 @@ class _DesktopWorkbenchState extends State<DesktopWorkbench> {
                     controller: widget.controller,
                     onActivate: (name) async {
                       await widget.onActivateScript(name);
-                      if (mounted) setState(() => _selectedDate = null);
                     },
                     onTogglePower: widget.onTogglePower,
                     onManage: _manageScripts,
@@ -226,6 +224,11 @@ class _DesktopWorkbenchState extends State<DesktopWorkbench> {
                     I18n.overview.tr,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
+                  const SizedBox(width: 4),
+                  TaskCatalogFilterButton(
+                    controller: widget.controller,
+                    iconSize: 18,
+                  ),
                   const SizedBox(width: 8),
                   if (compact)
                     const Spacer()
@@ -260,6 +263,7 @@ class _DesktopWorkbenchState extends State<DesktopWorkbench> {
               scriptModel: script,
               gridLayout: true,
               inlineParameters: false,
+              showFilterButton: false,
               onOpenTask: (task) =>
                   widget.onOpenTask(task, HomeTaskParameterEntrySource.tasks),
               onQuickRun: widget.onQuickRun,
@@ -284,6 +288,36 @@ class _DesktopWorkbenchState extends State<DesktopWorkbench> {
     constraints: const BoxConstraints.tightFor(width: 32, height: 32),
     icon: Icon(icon, size: 18),
   );
+
+  /// Bulk quick-run / quick-wait button matching the row action icons.
+  Widget _bulkActionButton({
+    required String tooltip,
+    required VoidCallback? onPressed,
+    required IconData icon,
+  }) => IconButton(
+    tooltip: tooltip,
+    onPressed: onPressed,
+    padding: EdgeInsets.zero,
+    visualDensity: VisualDensity.compact,
+    constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+    icon: Icon(icon, size: 24),
+  );
+
+  /// Script power switch copied from the script strip card.
+  Widget _scriptPowerButton(ScriptModel script) => Obx(() {
+    final running = script.state.value == ScriptState.running;
+    final dragPending = widget.controller.isDragCopyPendingFor(script.name);
+    return IconButton(
+      tooltip: (running ? I18n.stop : I18n.run).tr,
+      onPressed: dragPending
+          ? null
+          : () => widget.onTogglePower(script.name, !running),
+      padding: EdgeInsets.zero,
+      visualDensity: VisualDensity.compact,
+      constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+      icon: const Icon(Icons.power_settings_new_rounded, size: 24),
+    );
+  });
 
   /// Plan management menu, label on wide panes and icon-only when compact.
   Widget _adjustPlanMenu(ScriptModel script, {required bool compact}) =>
@@ -359,25 +393,23 @@ class _DesktopWorkbenchState extends State<DesktopWorkbench> {
                 I18n.homeTasksTab.tr,
                 style: Theme.of(context).textTheme.titleMedium,
               ),
-              const Spacer(),
-              if (_selectedDate != null)
-                TextButton(
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    minimumSize: const Size(0, 32),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  onPressed: () => setState(() => _selectedDate = null),
-                  child: const Text('全部日期'),
+              const SizedBox(width: 10),
+              Obx(
+                () => ConfigStateIndicator(
+                  state: widget.controller.scriptStateFor(script),
+                  size: 16,
                 ),
-              _stripIconButton(
+              ),
+              const Spacer(),
+              _scriptPowerButton(script),
+              _bulkActionButton(
                 tooltip: I18n.homeQuickRunAll.tr,
                 onPressed: widget.controller.isBulkQuickScheduling
                     ? null
                     : widget.onBulkQuickRun,
                 icon: Icons.flash_on_rounded,
               ),
-              _stripIconButton(
+              _bulkActionButton(
                 tooltip: I18n.homeQuickWaitAll.tr,
                 onPressed: widget.controller.isBulkQuickScheduling
                     ? null
@@ -406,7 +438,6 @@ class _DesktopWorkbenchState extends State<DesktopWorkbench> {
             child: TaskStatusPanel(
               controller: widget.controller,
               scriptModel: script,
-              scheduledDate: _selectedDate,
               compact: true,
               canQuickScheduleTask: (task) =>
                   widget.controller.canQuickScheduleTask(script, task),

@@ -29,17 +29,19 @@ class LogTaskContext {
 
   void consume(String line) {
     final explicit = RegExp(
-      r'\[Task\]\s+(\w+)\s+\(|Scheduler: Start task `([^`]+)`',
+      r'\[Task\]\s+(\w+)\s+\(|Scheduler: Start task `([^`]+)`|调度器\s*[：:]\s*开始任务\s*[『「]([^』」]+)[』」]|\[当前任务\]\s*(\S.*?)\s*$',
     ).firstMatch(line);
     if (explicit != null) {
-      task = _canonicalTask(explicit.group(1) ?? explicit.group(2)!);
+      task = _canonicalTask(
+        explicit.group(1) ?? explicit.group(2) ?? explicit.group(3) ?? explicit.group(4)!,
+      );
     }
     final trimmed = line.trim();
     if (RegExp(r'^═{15,}$').hasMatch(trimmed)) {
       if (_heading != null) {
-        task = _heading!.toUpperCase() == 'START'
-            ? null
-            : _canonicalTask(_heading!);
+        final heading = _heading!.trim();
+        final isStart = heading.toUpperCase() == 'START' || heading == '开始';
+        task = isStart ? null : _canonicalTask(heading);
       }
       _heading = null;
       _separator = true;
