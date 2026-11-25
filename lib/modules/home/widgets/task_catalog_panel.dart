@@ -50,6 +50,7 @@ class _TaskCatalogPanelState extends State<TaskCatalogPanel> {
   final Map<String, bool> _enabledOverrides = <String, bool>{};
   final Set<String> _togglingTasks = <String>{};
   final Map<String, int> _todayRunCounts = <String, int>{};
+  final Map<String, int> _todayBattleCounts = <String, int>{};
   Timer? _runCountTimer;
 
   @override
@@ -79,15 +80,23 @@ class _TaskCatalogPanelState extends State<TaskCatalogPanel> {
         return;
       }
       final counts = <String, int>{};
+      final battles = <String, int>{};
       for (final entry in day.tasks.entries) {
+        final key = _countKey(entry.key);
         if (entry.value.runCount > 0) {
-          counts[_countKey(entry.key)] = entry.value.runCount;
+          counts[key] = entry.value.runCount;
+        }
+        if (entry.value.battleCount > 0) {
+          battles[key] = entry.value.battleCount;
         }
       }
       setState(() {
         _todayRunCounts
           ..clear()
           ..addAll(counts);
+        _todayBattleCounts
+          ..clear()
+          ..addAll(battles);
       });
     } catch (_) {
       // Keep the previous counters when the statistics endpoint is busy.
@@ -97,15 +106,41 @@ class _TaskCatalogPanelState extends State<TaskCatalogPanel> {
   static String _countKey(String raw) =>
       raw.toLowerCase().replaceAll(RegExp(r'[\s_\-()（）·]'), '');
 
+  /// 这些任务的总览徽标统计「战斗场次」，而不是「任务运行次数」。
+  static const Set<String> _battleCountTasks = <String>{
+    '八岐大蛇', 'orochi',
+    '金币妖怪', 'goldyoukai',
+    '经验妖怪', 'experienceyoukai',
+    '契灵之境', 'bondlingfairyland',
+    '英杰试炼', 'herotest',
+    '个人突破', 'realmraid',
+    '寮突破', 'ryoutoppa',
+    '斗技', 'duel',
+    '业原火', 'sougenbi', 'goryourealm',
+    '日轮之陨', 'fallensun',
+    '永生之海', 'eternitysea',
+    '觉醒副本', 'evozone',
+    '探索', 'exploration',
+    '地域鬼王', 'areaboss',
+  };
+
+  /// Whether [taskName] badges battle count instead of task run count.
+  bool _usesBattleCount(String taskName) =>
+      _battleCountTasks.contains(_countKey(taskName)) ||
+      _battleCountTasks.contains(_countKey(taskName.tr));
+
   int _runCountFor(String taskName) {
-    if (_todayRunCounts.isEmpty) {
+    final source = _usesBattleCount(taskName)
+        ? _todayBattleCounts
+        : _todayRunCounts;
+    if (source.isEmpty) {
       return 0;
     }
-    final direct = _todayRunCounts[_countKey(taskName)];
+    final direct = source[_countKey(taskName)];
     if (direct != null) {
       return direct;
     }
-    return _todayRunCounts[_countKey(taskName.tr)] ?? 0;
+    return source[_countKey(taskName.tr)] ?? 0;
   }
 
   @override

@@ -305,6 +305,11 @@ extension HomeDashboardWorkspaceX on HomeDashboardController {
     if (normalized.isEmpty) {
       return;
     }
+    // 再次点击同一个任务：收起设置页，回到原来的列表页。
+    if (normalized == activeTaskName.value.trim()) {
+      unawaited(closeTaskParameters());
+      return;
+    }
     activeTaskName.value = normalized;
     _taskParameterEntrySource.value = source;
     activeWorkbenchTab.value = HomeWorkbenchTab.tasks;
