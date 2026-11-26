@@ -145,8 +145,20 @@ class HomeDashboardController extends GetxController {
   final _taskParameterEntrySource = Rxn<HomeTaskParameterEntrySource>();
   final _taskAvailabilityCache = <String, bool>{};
 
-  /// Task names pinned to the favorites group of the task catalog.
+  /// Favorites grouped by script name, persisted as one JSON object.
+  final RxMap<String, List<String>> _favoritesByScript =
+      <String, List<String>>{}.obs;
+
+  /// Favorites of the currently displayed script.
+  ///
+  /// Kept in sync with [activeScriptName] so catalog widgets can simply read
+  /// `.contains(...)` inside Obx and stay reactive across script switches.
   final favoriteTaskNames = <String>[].obs;
+  Worker? _favoriteMirrorWorker;
+
+  /// Legacy global favorites from pre-isolation builds; migrated into the
+  /// first script that becomes active so existing picks are not lost.
+  List<String>? _pendingLegacyFavorites;
 
   /// Consecutive "wait now" clicks per task, so repeated clicks stack.
   final quickWaitClicks = <String, QuickWaitClick>{};
@@ -156,7 +168,7 @@ class HomeDashboardController extends GetxController {
   @override
   void onInit() {
     _loadSelection();
-    _loadFavorites();
+    initFavorites();
     _loadWorkbenchCollectionWidth();
     _loadWorkbenchSplitRatio();
     syncWorkspaceState();
@@ -173,6 +185,8 @@ class HomeDashboardController extends GetxController {
   void onClose() {
     _workspaceSyncWorker?.dispose();
     _workspaceSyncWorker = null;
+    _favoriteMirrorWorker?.dispose();
+    _favoriteMirrorWorker = null;
     super.onClose();
   }
 
@@ -201,7 +215,22 @@ class HomeDashboardController extends GetxController {
     } catch (_) {}
   }
 
-  /// Loads the persisted favorites list.
+  /// Loads persisted favorites and wires the active-script mirror. Kept as a
+  /// separate method so offline tests can initialize favorites without running
+  /// the full production [onInit].
+  void initFavorites() {
+    _loadFavorites();
+    _syncFavoriteMirror();
+    _favoriteMirrorWorker?.dispose();
+    _favoriteMirrorWorker = ever(
+      activeScriptName,
+      (_) => _syncFavoriteMirror(),
+    );
+  }
+
+  /// Loads persisted favorites. The current format is a JSON object keyed by
+  /// script name; legacy builds stored a bare JSON list, which is kept as
+  /// [_pendingLegacyFavorites] and migrated into the first active script.
   void _loadFavorites() {
     final raw = _storage.read(StorageKey.homeFavoriteTaskNames.name);
     if (raw is! String || raw.isEmpty) {
@@ -209,32 +238,77 @@ class HomeDashboardController extends GetxController {
     }
     try {
       final decoded = jsonDecode(raw);
-      if (decoded is! List) {
+      if (decoded is Map) {
+        decoded.forEach((key, value) {
+          if (value is! List) {
+            return;
+          }
+          final names = value
+              .map((item) => item.toString().trim())
+              .where((item) => item.isNotEmpty)
+              .toList();
+          if (names.isNotEmpty) {
+            _favoritesByScript[key.toString()] = names;
+          }
+        });
         return;
       }
-      favoriteTaskNames.assignAll(
-        decoded
+      if (decoded is List) {
+        _pendingLegacyFavorites = decoded
             .map((item) => item.toString().trim())
-            .where((item) => item.isNotEmpty),
-      );
+            .where((item) => item.isNotEmpty)
+            .toList();
+      }
     } catch (_) {}
   }
 
-  /// Adds or removes one task from the favorites group and persists it.
-  void toggleFavoriteTask(String taskName) {
+  /// Mirrors the active script's favorites into [favoriteTaskNames] so catalog
+  /// widgets reading `.contains(...)` inside Obx stay reactive on switch.
+  void _syncFavoriteMirror() {
+    final script = activeScriptName.value.trim();
+    if (script.isEmpty) {
+      favoriteTaskNames.clear();
+      return;
+    }
+    var names = _favoritesByScript[script];
+    if (names == null && _pendingLegacyFavorites != null) {
+      names = List<String>.from(_pendingLegacyFavorites!);
+      _favoritesByScript[script] = names;
+      _pendingLegacyFavorites = null;
+      _persistFavorites();
+    }
+    favoriteTaskNames.assignAll(names ?? const <String>[]);
+  }
+
+  /// Persists the whole per-script favorites map as one JSON object.
+  void _persistFavorites() {
+    _storage.write(
+      StorageKey.homeFavoriteTaskNames.name,
+      jsonEncode(Map<String, List<String>>.from(_favoritesByScript)),
+    );
+  }
+
+  /// Adds or removes one task from [scriptName]'s favorites group and persists.
+  /// The catalog passes its own source script so a favorite always lands on the
+  /// script the row belongs to, never on a stale active-script value.
+  void toggleFavoriteTask(String taskName, {String? scriptName}) {
     final name = taskName.trim();
     if (name.isEmpty) {
       return;
     }
-    final next = favoriteTaskNames.toList();
+    final script = (scriptName ?? activeScriptName.value).trim();
+    if (script.isEmpty) {
+      return;
+    }
+    final next = List<String>.from(_favoritesByScript[script] ?? const <String>[]);
     if (!next.remove(name)) {
       next.add(name);
     }
-    favoriteTaskNames.assignAll(next);
-    _storage.write(
-      StorageKey.homeFavoriteTaskNames.name,
-      jsonEncode(next),
-    );
+    _favoritesByScript[script] = next;
+    _persistFavorites();
+    if (script == activeScriptName.value.trim()) {
+      favoriteTaskNames.assignAll(next);
+    }
   }
 
   bool isAllControlScriptsRunning() {

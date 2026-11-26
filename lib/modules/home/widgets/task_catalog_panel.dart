@@ -52,6 +52,9 @@ class _TaskCatalogPanelState extends State<TaskCatalogPanel> {
   final Map<String, int> _todayRunCounts = <String, int>{};
   final Map<String, int> _todayBattleCounts = <String, int>{};
   Timer? _runCountTimer;
+  /// Incremented on every refresh (and on script switch) so an in-flight
+  /// response from the previous script cannot overwrite the new one's counts.
+  int _countRefreshGeneration = 0;
 
   @override
   void initState() {
@@ -66,6 +69,10 @@ class _TaskCatalogPanelState extends State<TaskCatalogPanel> {
 
   /// Refreshes today's per-task run counters used by the catalog badges.
   Future<void> _refreshTodayRunCounts() async {
+    final generation = ++_countRefreshGeneration;
+    // Pin the script name at request time: a script switch while the request is
+    // in flight must not let this response write the new script's counters.
+    final scriptName = widget.scriptModel.name;
     final now = DateTime.now();
     final dateKey =
         '${now.year.toString().padLeft(4, '0')}-'
@@ -73,10 +80,10 @@ class _TaskCatalogPanelState extends State<TaskCatalogPanel> {
         '${now.day.toString().padLeft(2, '0')}';
     try {
       final day = await ApiClient().getScriptStatisticsDay(
-        widget.scriptModel.name,
+        scriptName,
         dateKey,
       );
-      if (!mounted) {
+      if (!mounted || generation != _countRefreshGeneration) {
         return;
       }
       final counts = <String, int>{};
@@ -151,6 +158,15 @@ class _TaskCatalogPanelState extends State<TaskCatalogPanel> {
     }
     _enabledOverrides.clear();
     _scrollTaskListToTop();
+    // Invalidate any in-flight stats request for the previous script, drop the
+    // stale counters immediately, then fetch the new script's counters now
+    // instead of waiting up to 30s for the periodic timer.
+    _countRefreshGeneration++;
+    setState(() {
+      _todayRunCounts.clear();
+      _todayBattleCounts.clear();
+    });
+    unawaited(_refreshTodayRunCounts());
   }
 
   @override
@@ -600,7 +616,10 @@ class _CatalogTaskRow extends StatelessWidget {
                               ? I18n.homeFavoriteRemove
                               : I18n.homeFavoriteAdd)
                           .tr,
-                  onPressed: () => controller.toggleFavoriteTask(task.name),
+                  onPressed: () => controller.toggleFavoriteTask(
+                    task.name,
+                    scriptName: sourceScriptName,
+                  ),
                   icon: Icon(
                     isFavorite
                         ? Icons.favorite_rounded
@@ -660,8 +679,10 @@ class _CatalogTaskRow extends StatelessWidget {
             canQuickSchedule: canQuickScheduleTask(task.name),
             quickScheduleLocked: quickScheduleLocked,
             isFavorite: isFavorite,
-            onToggleFavorite: () =>
-                controller.toggleFavoriteTask(task.name),
+            onToggleFavorite: () => controller.toggleFavoriteTask(
+              task.name,
+              scriptName: sourceScriptName,
+            ),
             runCount: runCount,
           ),
           leading: Row(

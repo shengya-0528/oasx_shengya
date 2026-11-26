@@ -153,6 +153,7 @@ class ActiveConfigPanel extends StatelessWidget {
   Widget _buildTabContent(ScriptModel script, HomeWorkbenchTab currentTab) {
     return switch (currentTab) {
       HomeWorkbenchTab.status => TaskStatusPanel(
+        key: ValueKey('overview-status-${script.name}'),
         controller: controller,
         scriptModel: script,
         canQuickScheduleTask: (taskName) =>
@@ -164,6 +165,7 @@ class ActiveConfigPanel extends StatelessWidget {
             onOpenTask(taskName, HomeTaskParameterEntrySource.overview),
       ),
       HomeWorkbenchTab.tasks => TaskCatalogPanel(
+        key: ValueKey('overview-catalog-${script.name}'),
         controller: controller,
         scriptModel: script,
         onOpenTask: (taskName) =>

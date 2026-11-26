@@ -259,6 +259,7 @@ class _DesktopWorkbenchState extends State<DesktopWorkbench> {
           ),
           Expanded(
             child: TaskCatalogPanel(
+              key: ValueKey('desktop-task-catalog-${script.name}'),
               controller: widget.controller,
               scriptModel: script,
               gridLayout: true,
@@ -436,6 +437,7 @@ class _DesktopWorkbenchState extends State<DesktopWorkbench> {
           ),
           Expanded(
             child: TaskStatusPanel(
+              key: ValueKey('desktop-task-status-${script.name}'),
               controller: widget.controller,
               scriptModel: script,
               compact: true,
