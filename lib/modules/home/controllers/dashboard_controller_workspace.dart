@@ -169,22 +169,14 @@ extension HomeDashboardWorkspaceX on HomeDashboardController {
   }
 
   Set<String> enabledTaskNamesFor(ScriptModel model) {
-    final names = <String>{};
-    final running = model.runningTask.value.taskName.value.trim();
-    if (running.isNotEmpty) {
-      names.add(running);
-    }
-    names.addAll(
-      model.pendingTaskList
-          .map((task) => task.taskName.value.trim())
-          .where((taskName) => taskName.isNotEmpty),
-    );
-    names.addAll(
-      model.waitingTaskList
-          .map((task) => task.taskName.value.trim())
-          .where((taskName) => taskName.isNotEmpty),
-    );
-    return names;
+    // 只认后端 schedule 快照里的权威 scheduler.enable，不再从
+    // running/pending/waiting 反推——失败账本里 enable=true 的任务、或
+    // next_run 还在未来等待的任务，勾选状态都必须是 true。
+    return model.enabledTasks.entries
+        .where((entry) => entry.value)
+        .map((entry) => entry.key.trim())
+        .where((name) => name.isNotEmpty)
+        .toSet();
   }
 
   bool isTaskEnabled(ScriptModel model, String taskName) {

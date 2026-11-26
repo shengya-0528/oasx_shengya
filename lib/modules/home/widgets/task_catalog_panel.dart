@@ -182,13 +182,20 @@ class _TaskCatalogPanelState extends State<TaskCatalogPanel> {
       final activeTask = widget.controller.activeTaskName.value.trim();
       final dragPayload = widget.controller.activeDragPayload.value;
       final quickScheduleLocked = widget.controller.isBulkQuickScheduling;
+      // 必须在这里（Obx 的直接执行栈内）读权威 enable，才能建立响应式依赖：
+      // WS 推送新的 schedule.enables 后立即重建面板，不必等 30 秒定时器。
+      final enabledTaskNames = widget.controller.enabledTaskNamesFor(
+        widget.scriptModel,
+      );
       if (!widget.inlineParameters) {
-        return _buildTaskList(context, dragPayload, quickScheduleLocked);
+        return _buildTaskList(
+          context, dragPayload, quickScheduleLocked, enabledTaskNames);
       }
       return IndexedStack(
         index: activeTask.isEmpty ? 0 : 1,
         children: [
-          _buildTaskList(context, dragPayload, quickScheduleLocked),
+          _buildTaskList(
+            context, dragPayload, quickScheduleLocked, enabledTaskNames),
           TaskParameterPanel(
             controller: widget.controller,
             scriptModel: widget.scriptModel,
@@ -203,6 +210,7 @@ class _TaskCatalogPanelState extends State<TaskCatalogPanel> {
     BuildContext context,
     ConfigDragPayload? dragPayload,
     bool quickScheduleLocked,
+    Set<String> enabledTaskNames,
   ) {
     final filter = widget.controller.taskCatalogFilter.value;
     return Column(
@@ -224,9 +232,6 @@ class _TaskCatalogPanelState extends State<TaskCatalogPanel> {
                   child: Text('${I18n.error.tr}: ${snapshot.error}'),
                 );
               }
-              final enabledTaskNames = widget.controller.enabledTaskNamesFor(
-                widget.scriptModel,
-              );
               _syncEnabledOverrides(enabledTaskNames);
               final sections = _sections(
                 snapshot.data ?? const <String, List<String>>{},
